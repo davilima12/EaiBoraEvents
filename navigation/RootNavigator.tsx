@@ -4,6 +4,7 @@ import { useNavigation } from "@react-navigation/native";
 import MainTabNavigator from "@/navigation/MainTabNavigator";
 import EventDetailScreen from "@/screens/EventDetailScreen";
 import CreateEventScreen from "@/screens/CreateEventScreen";
+import CommentsModal from "@/screens/CommentsModal";
 import AuthScreen from "@/screens/AuthScreen";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
@@ -12,6 +13,7 @@ export type RootStackParamList = {
   MainTabs: undefined;
   EventDetail: { eventId: string };
   CreateEvent: undefined;
+  Comments: { eventId: string };
   Auth: undefined;
 };
 
@@ -57,6 +59,18 @@ export default function RootNavigator() {
               options={{
                 headerShown: true,
                 title: "Novo Evento",
+                headerTintColor: theme.text,
+                headerStyle: {
+                  backgroundColor: theme.backgroundRoot,
+                },
+              }}
+            />
+            <Stack.Screen 
+              name="Comments" 
+              component={CommentsModal}
+              options={{
+                headerShown: true,
+                title: "Comentários",
                 headerTintColor: theme.text,
                 headerStyle: {
                   backgroundColor: theme.backgroundRoot,

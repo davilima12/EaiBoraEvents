@@ -46,8 +46,8 @@ export function VideoPlayer({ uri, thumbnail, style }: VideoPlayerProps) {
       />
       
       {isLoading ? (
-        <View style={styles.overlay}>
-          <ActivityIndicator size="large" color={theme.primary} />
+        <View style={[styles.skeleton, { backgroundColor: theme.backgroundSecondary }]}>
+          <View style={styles.skeletonShimmer} />
         </View>
       ) : null}
       
@@ -72,11 +72,14 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
   },
-  overlay: {
+  skeleton: {
     ...StyleSheet.absoluteFillObject,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    overflow: "hidden",
+  },
+  skeletonShimmer: {
+    width: "100%",
+    height: "100%",
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
   },
   playButton: {
     position: "absolute",

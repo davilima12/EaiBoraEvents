@@ -91,6 +91,10 @@ export default function FeedScreen() {
     (navigation as any).navigate("EventDetail", { eventId });
   };
 
+  const handleComment = (eventId: string) => {
+    (navigation as any).navigate("Comments", { eventId });
+  };
+
   const handleCreateEvent = () => {
     (navigation as any).navigate("CreateEvent");
   };
@@ -135,6 +139,7 @@ export default function FeedScreen() {
             event={event}
             onPress={() => handleEventPress(event.id)}
             onLike={() => handleLike(event.id)}
+            onComment={() => handleComment(event.id)}
             onSave={() => handleSave(event.id)}
           />
         ))}

@@ -15,9 +15,10 @@ interface EventCardProps {
   onPress: () => void;
   onLike: () => void;
   onSave: () => void;
+  onComment: () => void;
 }
 
-export function EventCard({ event, onPress, onLike, onSave }: EventCardProps) {
+export function EventCard({ event, onPress, onLike, onSave, onComment }: EventCardProps) {
   const { theme } = useTheme();
 
   const formatDate = (dateString: string) => {
@@ -108,6 +109,23 @@ export function EventCard({ event, onPress, onLike, onSave }: EventCardProps) {
             />
             <ThemedText style={[styles.actionText, { color: theme.textSecondary }]}>
               {event.likes}
+            </ThemedText>
+          </Pressable>
+
+          <Pressable
+            style={styles.actionButton}
+            onPress={(e) => {
+              e.stopPropagation();
+              onComment();
+            }}
+          >
+            <Feather
+              name="message-circle"
+              size={20}
+              color={theme.textSecondary}
+            />
+            <ThemedText style={[styles.actionText, { color: theme.textSecondary }]}>
+              {event.comments?.length || 0}
             </ThemedText>
           </Pressable>
 
