@@ -21,10 +21,12 @@ export const getCommonScreenOptions = ({
   headerBlurEffect: isDark ? "dark" : "light",
   headerTintColor: theme.text,
   headerStyle: {
-    backgroundColor: Platform.select({
-      ios: undefined,
-      android: theme.backgroundRoot,
-    }),
+    backgroundColor: transparent 
+      ? Platform.select({
+          ios: undefined,
+          android: theme.backgroundRoot,
+        })
+      : theme.backgroundRoot,
   },
   gestureEnabled: true,
   gestureDirection: "horizontal",
