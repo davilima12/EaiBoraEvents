@@ -2,13 +2,14 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { User, AccountType } from "@/types";
 import { database } from "@/services/database";
+import { api, clearAuthToken } from "@/services/api";
 
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   signIn: (email: string, password: string, accountType: AccountType) => Promise<void>;
-  signUp: (name: string, email: string, password: string, accountType: AccountType) => Promise<void>;
+  signUp: (name: string, email: string, password: string, accountType: AccountType, stateId: number, cityId: number) => Promise<void>;
   signOut: () => Promise<void>;
   updateUser: (updates: Partial<User>) => Promise<void>;
 }
@@ -44,51 +45,75 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signIn = async (email: string, password: string, accountType: AccountType) => {
-    let existingUser = await database.getUserByEmail(email);
-    
-    if (!existingUser) {
-      const mockUser: User = {
-        id: Math.random().toString(36).substring(7),
-        name: accountType === "business" ? "Bar do João" : "João Silva",
-        email,
+    try {
+      const response = await api.login(email, password);
+
+      // Fetch user profile from API
+      const userProfile = await api.getUserProfile();
+
+      // Create or update user with profile data
+      const newUser: User = {
+        id: userProfile.id.toString(),
+        name: userProfile.name,
+        email: userProfile.email,
         accountType,
         avatar: undefined,
-        bio: accountType === "business" ? "O melhor bar da região!" : "Adoro eventos ao ar livre",
-        category: accountType === "business" ? "food" : undefined,
+        bio: "",
+        category: accountType === "business" ? undefined : undefined,
       };
-      
-      await database.createUser(mockUser);
-      existingUser = mockUser;
+
+      // Check if user exists locally
+      const existingUser = await database.getUserById(newUser.id);
+
+      if (existingUser) {
+        // Update existing user
+        await database.updateUser(newUser.id, newUser);
+      } else {
+        // Create new user
+        await database.createUser(newUser);
+      }
+
+      await AsyncStorage.setItem(AUTH_STORAGE_KEY, newUser.id);
+      setUser(newUser);
+    } catch (error) {
+      console.error("Login error:", error);
+      throw error;
     }
-    
-    await AsyncStorage.setItem(AUTH_STORAGE_KEY, existingUser.id);
-    setUser(existingUser);
   };
 
-  const signUp = async (name: string, email: string, password: string, accountType: AccountType) => {
-    const newUser: User = {
-      id: Math.random().toString(36).substring(7),
-      name,
-      email,
-      accountType,
-      avatar: undefined,
-      bio: "",
-      category: accountType === "business" ? undefined : undefined,
-    };
-    
-    await database.createUser(newUser);
-    await AsyncStorage.setItem(AUTH_STORAGE_KEY, newUser.id);
-    setUser(newUser);
+  const signUp = async (name: string, email: string, password: string, accountType: AccountType, stateId: number, cityId: number) => {
+    try {
+      const response = await api.createAccount(name, email, password, accountType, cityId, stateId);
+
+      const newUser: User = {
+        id: response.user.id.toString(),
+        name: response.user.name,
+        email: response.user.email,
+        accountType,
+        avatar: undefined,
+        bio: "",
+        category: accountType === "business" ? undefined : undefined,
+      };
+
+      // Store user locally for app functionality
+      await database.createUser(newUser);
+      await AsyncStorage.setItem(AUTH_STORAGE_KEY, newUser.id);
+      setUser(newUser);
+    } catch (error) {
+      console.error("Sign up error:", error);
+      throw error;
+    }
   };
 
   const signOut = async () => {
     await AsyncStorage.removeItem(AUTH_STORAGE_KEY);
+    await clearAuthToken();
     setUser(null);
   };
 
   const updateUser = async (updates: Partial<User>) => {
     if (!user) return;
-    
+
     try {
       await database.updateUser(user.id, updates);
       const updatedUser = { ...user, ...updates };

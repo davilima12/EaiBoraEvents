@@ -9,9 +9,10 @@ import { Chat } from "@/types";
 interface ChatPreviewCardProps {
   chat: Chat;
   onPress: () => void;
+  containerStyle?: any;
 }
 
-export function ChatPreviewCard({ chat, onPress }: ChatPreviewCardProps) {
+export function ChatPreviewCard({ chat, onPress, containerStyle }: ChatPreviewCardProps) {
   const { theme } = useTheme();
 
   const formatTimestamp = (timestamp: string) => {
@@ -29,7 +30,7 @@ export function ChatPreviewCard({ chat, onPress }: ChatPreviewCardProps) {
 
   return (
     <Pressable
-      style={[styles.container, { backgroundColor: theme.backgroundDefault }]}
+      style={[styles.container, { backgroundColor: theme.backgroundDefault }, containerStyle]}
       onPress={onPress}
       android_ripple={{ color: theme.primary + "20" }}
     >
@@ -76,6 +77,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     padding: Spacing.lg,
     alignItems: "center",
+    borderRadius: BorderRadius.sm,
   },
   avatar: {
     width: 50,

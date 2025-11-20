@@ -127,40 +127,40 @@ class DatabaseService {
 
   async createUser(user: User): Promise<void> {
     if (!this.db) throw new Error("Database not initialized");
-    
+
     await this.db.runAsync(
       `INSERT INTO users (id, name, email, accountType, avatar, bio, category, latitude, longitude)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [user.id, user.name, user.email, user.accountType, user.avatar || null, user.bio || null, 
-       user.category || null, null, null]
+      [user.id, user.name, user.email, user.accountType, user.avatar || null, user.bio || null,
+      user.category || null, null, null]
     );
   }
 
   async getUserByEmail(email: string): Promise<User | null> {
     if (!this.db) throw new Error("Database not initialized");
-    
+
     const result = await this.db.getFirstAsync<User>(
       "SELECT * FROM users WHERE email = ?",
       [email]
     );
-    
+
     return result || null;
   }
 
   async getUserById(id: string): Promise<User | null> {
     if (!this.db) throw new Error("Database not initialized");
-    
+
     const result = await this.db.getFirstAsync<User>(
       "SELECT * FROM users WHERE id = ?",
       [id]
     );
-    
+
     return result || null;
   }
 
   async updateUserLocation(userId: string, latitude: number, longitude: number): Promise<void> {
     if (!this.db) throw new Error("Database not initialized");
-    
+
     await this.db.runAsync(
       "UPDATE users SET latitude = ?, longitude = ? WHERE id = ?",
       [latitude, longitude, userId]
@@ -169,10 +169,10 @@ class DatabaseService {
 
   async updateUser(userId: string, updates: { name?: string; bio?: string; avatar?: string; category?: string }): Promise<void> {
     if (!this.db) throw new Error("Database not initialized");
-    
+
     const fields: string[] = [];
     const values: any[] = [];
-    
+
     if (updates.name !== undefined) {
       fields.push("name = ?");
       values.push(updates.name);
@@ -189,9 +189,9 @@ class DatabaseService {
       fields.push("category = ?");
       values.push(updates.category);
     }
-    
+
     if (fields.length === 0) return;
-    
+
     values.push(userId);
     await this.db.runAsync(
       `UPDATE users SET ${fields.join(", ")} WHERE id = ?`,
@@ -201,20 +201,20 @@ class DatabaseService {
 
   async createEvent(event: Omit<Event, "likes" | "isLiked" | "isSaved" | "comments" | "distance">): Promise<void> {
     if (!this.db) throw new Error("Database not initialized");
-    
+
     await this.db.runAsync(
       `INSERT INTO events (id, title, description, businessId, businessName, businessAvatar, 
         images, media, date, address, latitude, longitude, category)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [event.id, event.title, event.description, event.businessId, event.businessName,
-       event.businessAvatar || null, JSON.stringify(event.images), JSON.stringify(event.media),
-       event.date, event.location.address, event.location.latitude, event.location.longitude, event.category]
+      event.businessAvatar || null, JSON.stringify(event.images), JSON.stringify(event.media),
+      event.date, event.location.address, event.location.latitude, event.location.longitude, event.category]
     );
   }
 
   async getEvents(userId: string, userLat?: number, userLon?: number): Promise<Event[]> {
     if (!this.db) throw new Error("Database not initialized");
-    
+
     const events = await this.db.getAllAsync<any>(
       `SELECT e.*, 
         (SELECT COUNT(*) FROM event_likes WHERE eventId = e.id) as likes,
@@ -231,7 +231,7 @@ class DatabaseService {
         type: "image" as const,
         uri,
       }));
-      
+
       return {
         id: e.id,
         title: e.title,
@@ -259,7 +259,7 @@ class DatabaseService {
 
   async getEventsByBusinessId(businessId: string, userId: string): Promise<Event[]> {
     if (!this.db) throw new Error("Database not initialized");
-    
+
     const events = await this.db.getAllAsync<any>(
       `SELECT e.*, 
         (SELECT COUNT(*) FROM event_likes WHERE eventId = e.id) as likes,
@@ -277,7 +277,7 @@ class DatabaseService {
         type: "image" as const,
         uri,
       }));
-      
+
       return {
         id: e.id,
         title: e.title,
@@ -305,7 +305,7 @@ class DatabaseService {
 
   async getEventById(eventId: string, userId: string): Promise<Event | null> {
     if (!this.db) throw new Error("Database not initialized");
-    
+
     const e = await this.db.getFirstAsync<any>(
       `SELECT e.*, 
         (SELECT COUNT(*) FROM event_likes WHERE eventId = e.id) as likes,
@@ -351,7 +351,7 @@ class DatabaseService {
 
   async toggleLike(eventId: string, userId: string): Promise<boolean> {
     if (!this.db) throw new Error("Database not initialized");
-    
+
     const liked = await this.db.getFirstAsync<{ count: number }>(
       "SELECT COUNT(*) as count FROM event_likes WHERE eventId = ? AND userId = ?",
       [eventId, userId]
@@ -374,7 +374,7 @@ class DatabaseService {
 
   async toggleSave(eventId: string, userId: string): Promise<boolean> {
     if (!this.db) throw new Error("Database not initialized");
-    
+
     const saved = await this.db.getFirstAsync<{ count: number }>(
       "SELECT COUNT(*) as count FROM event_saves WHERE eventId = ? AND userId = ?",
       [eventId, userId]
@@ -397,7 +397,7 @@ class DatabaseService {
 
   async getSavedEvents(userId: string): Promise<Event[]> {
     if (!this.db) throw new Error("Database not initialized");
-    
+
     const events = await this.db.getAllAsync<any>(
       `SELECT e.*, 
         (SELECT COUNT(*) FROM event_likes WHERE eventId = e.id) as likes,
@@ -416,7 +416,7 @@ class DatabaseService {
         type: "image" as const,
         uri,
       }));
-      
+
       return {
         id: e.id,
         title: e.title,
@@ -444,7 +444,7 @@ class DatabaseService {
 
   async addComment(eventId: string, userId: string, userName: string, userAvatar: string | undefined, text: string): Promise<void> {
     if (!this.db) throw new Error("Database not initialized");
-    
+
     const id = Math.random().toString(36).substring(7);
     await this.db.runAsync(
       "INSERT INTO comments (id, eventId, userId, userName, userAvatar, text) VALUES (?, ?, ?, ?, ?, ?)",
@@ -454,7 +454,7 @@ class DatabaseService {
 
   async getComments(eventId: string): Promise<Array<{ id: string; userId: string; userName: string; userAvatar?: string; text: string; timestamp: string }>> {
     if (!this.db) throw new Error("Database not initialized");
-    
+
     const comments = await this.db.getAllAsync<any>(
       "SELECT * FROM comments WHERE eventId = ? ORDER BY createdAt DESC",
       [eventId]
@@ -472,9 +472,9 @@ class DatabaseService {
 
   async getOrCreateChat(userId1: string, userId2: string): Promise<string> {
     if (!this.db) throw new Error("Database not initialized");
-    
+
     const [user1, user2] = [userId1, userId2].sort();
-    
+
     const existing = await this.db.getFirstAsync<{ id: string }>(
       "SELECT id FROM chats WHERE (userId1 = ? AND userId2 = ?) OR (userId1 = ? AND userId2 = ?)",
       [user1, user2, user2, user1]
@@ -493,7 +493,7 @@ class DatabaseService {
 
   async getChats(userId: string): Promise<Chat[]> {
     if (!this.db) throw new Error("Database not initialized");
-    
+
     const chats = await this.db.getAllAsync<any>(
       `SELECT c.*, 
         CASE WHEN c.userId1 = ? THEN u2.name ELSE u1.name END as contactName,
@@ -522,12 +522,19 @@ class DatabaseService {
     }));
   }
 
+  async deleteChat(chatId: string): Promise<void> {
+    if (!this.db) throw new Error("Database not initialized");
+
+    await this.db.runAsync("DELETE FROM messages WHERE chatId = ?", [chatId]);
+    await this.db.runAsync("DELETE FROM chats WHERE id = ?", [chatId]);
+  }
+
   async sendMessage(chatId: string, senderId: string, text: string): Promise<Message> {
     if (!this.db) throw new Error("Database not initialized");
-    
+
     const id = Math.random().toString(36).substring(7);
     const timestamp = new Date().toISOString();
-    
+
     await this.db.runAsync(
       "INSERT INTO messages (id, chatId, senderId, text, createdAt) VALUES (?, ?, ?, ?, ?)",
       [id, chatId, senderId, text, timestamp]
@@ -550,7 +557,7 @@ class DatabaseService {
 
   async getMessages(chatId: string): Promise<Message[]> {
     if (!this.db) throw new Error("Database not initialized");
-    
+
     const messages = await this.db.getAllAsync<any>(
       "SELECT * FROM messages WHERE chatId = ? ORDER BY createdAt ASC",
       [chatId]
@@ -568,7 +575,7 @@ class DatabaseService {
 
   async markMessagesAsRead(chatId: string, userId: string): Promise<void> {
     if (!this.db) throw new Error("Database not initialized");
-    
+
     const unreadMessages = await this.db.getAllAsync<{ id: string }>(
       `SELECT m.id FROM messages m
        LEFT JOIN message_read_status mrs ON m.id = mrs.messageId AND mrs.userId = ?
@@ -598,12 +605,47 @@ class DatabaseService {
 
   async seedMockData(): Promise<void> {
     if (!this.db) throw new Error("Database not initialized");
-    
+
     const eventCount = await this.db.getFirstAsync<{ count: number }>(
       "SELECT COUNT(*) as count FROM events"
     );
 
-    if (eventCount && eventCount.count > 0) return;
+    const mockBusinesses = [
+      {
+        id: "mock-business-1",
+        name: "Blue Note Bar",
+        email: "contact@bluenote.com",
+        accountType: "business" as const,
+        avatar: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800",
+        bio: "O melhor jazz da cidade",
+        category: "music",
+      },
+      {
+        id: "mock-business-2",
+        name: "Food Park SP",
+        email: "contact@foodpark.com",
+        accountType: "business" as const,
+        avatar: "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=800",
+        bio: "Gastronomia de rua variada",
+        category: "food",
+      },
+      {
+        id: "mock-business-3",
+        name: "Run Club SP",
+        email: "contact@runclub.com",
+        accountType: "business" as const,
+        avatar: "https://images.unsplash.com/photo-1502904550040-7534597429ae?w=800",
+        bio: "Corridas semanais em grupo",
+        category: "sports",
+      },
+    ];
+
+    for (const business of mockBusinesses) {
+      const existing = await this.getUserById(business.id);
+      if (!existing) {
+        await this.createUser(business);
+      }
+    }
 
     const mockEvents = [
       {
@@ -686,8 +728,10 @@ class DatabaseService {
       },
     ];
 
-    for (const event of mockEvents) {
-      await this.createEvent(event);
+    if (!eventCount || eventCount.count === 0) {
+      for (const event of mockEvents) {
+        await this.createEvent(event);
+      }
     }
 
     const chatCount = await this.db.getFirstAsync<{ count: number }>(
@@ -699,7 +743,7 @@ class DatabaseService {
       const currentUserId = await this.db.getFirstAsync<{ id: string }>(
         "SELECT id FROM users WHERE accountType = 'personal' LIMIT 1"
       );
-      
+
       if (!currentUserId) return;
 
       const mockChats = [
@@ -776,7 +820,7 @@ class DatabaseService {
 
       for (const chat of mockChats) {
         const lastMessage = chat.messages[chat.messages.length - 1];
-        
+
         await this.db.runAsync(
           `INSERT INTO chats (id, userId1, userId2, lastMessage, lastMessageTime) 
            VALUES (?, ?, ?, ?, ?)`,
