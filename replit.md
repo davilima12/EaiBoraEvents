@@ -33,13 +33,13 @@ Preferred communication style: Simple, everyday language.
 - **expo-sqlite**: Local SQLite database for offline-first data storage
 - **Database Schema**:
   - `users`: User accounts (personal and business)
-  - `events`: Event listings with geolocation
+  - `events`: Event listings with geolocation and media support (images/videos)
   - `chats`: Chat conversations
   - `messages`: Chat messages
   - `likes`: Event likes tracking
   - `saves`: Saved events tracking
-  - `comments`: Event comments
-- **Mock Data Seeding**: Development database populated with sample events on initialization
+  - `comments`: Event comments with timestamps
+- **Mock Data Seeding**: Development database populated with sample events (including video events) and chat conversations on initialization
 - **AsyncStorage**: Persists user session (user ID) for authentication
 
 ### Location Services
@@ -63,13 +63,16 @@ Preferred communication style: Simple, everyday language.
 ### Component Architecture
 - **Themed Components**: `ThemedText`, `ThemedView` adapt to light/dark mode
 - **Screen Wrappers**: `ScreenScrollView`, `ScreenFlatList`, `ScreenKeyboardAwareScrollView` handle safe area insets and styling
-- **Reusable UI Elements**: Button, Card, EventCard, ChatPreviewCard, CategoryChip, EmptyState
+- **Reusable UI Elements**: Button, Card, EventCard, VideoPlayer, ChatPreviewCard, CategoryChip, EmptyState
 - **Error Boundary**: Class-based error boundary for graceful error handling with restart functionality
+- **Video Support**: Custom VideoPlayer component with autoplay, mute toggle, and tap-to-pause functionality
 
-### Image Handling
+### Media Handling
 - **expo-image**: Optimized image component for better performance
+- **expo-video**: Video playback with autoplay, looping, and mute controls (Instagram reels-style)
 - **expo-image-picker**: Camera and gallery access for event creation
-- **Remote Images**: Events use Unsplash URLs for mock data
+- **Media Schema**: Events support both images and videos through `media` field with type, uri, thumbnail, and duration
+- **Remote Media**: Events use Unsplash URLs for images and Google Cloud Storage for sample videos
 
 ### Authentication Flow
 - **Account Types**: Personal (event discovery) and Business (event posting)
@@ -87,6 +90,45 @@ Preferred communication style: Simple, everyday language.
 - **TypeScript**: Strict mode enabled with path aliases (@/* for root imports)
 - **ESLint + Prettier**: Code quality and formatting enforcement
 - **Module Resolution**: Babel plugin for @ alias resolution
+
+## Key Features
+
+### Event Discovery
+- **Location-Based Feed**: Events sorted by proximity to user's location
+- **Category Filtering**: Browse events by categories (Music, Food, Sports, etc.)
+- **Search Functionality**: Search events by title and description
+- **Distance Display**: Shows distance from user's current location
+
+### Social Interactions
+- **Likes**: Users can like events, with real-time counter updates
+- **Saves**: Bookmark events for later viewing
+- **Comments**: Full commenting system on event detail screens:
+  - Add new comments with multiline input
+  - View all comments with user attribution
+  - Timestamp formatting (e.g., "5m ago", "2h ago")
+  - Comment counter in event stats
+  - Empty state when no comments exist
+- **Share**: Share event details (UI present, functionality placeholder)
+
+### Media Support
+- **Images**: Event cards display images from Unsplash
+- **Videos**: Instagram reels-style video playback:
+  - Autoplay on load
+  - Muted by default
+  - Tap to pause/play
+  - Looping enabled
+  - Loading indicator during buffering
+
+### Event Creation (Business Accounts)
+- **Photo Upload**: Select images from gallery
+- **Event Details**: Title, description, category, date, location
+- **Location Selection**: Use current location or set custom venue location
+- **Form Validation**: Ensures all required fields are filled
+
+### Chat System
+- **Mock Conversations**: Pre-populated with example chats
+- **Chat Preview**: Shows last message and timestamp
+- **Unread Indicators**: Placeholder for future implementation
 
 ## External Dependencies
 
