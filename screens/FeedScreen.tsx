@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
 import { database } from "@/services/database";
+import { locationService } from "@/services/location";
 import { Event } from "@/types";
 import { Spacing } from "@/constants/theme";
 
@@ -21,7 +22,19 @@ export default function FeedScreen() {
   const loadEvents = useCallback(async () => {
     if (!user) return;
     try {
-      const data = await database.getEvents(user.id);
+      const cachedLocation = locationService.getCachedLocation();
+      const location = cachedLocation || await locationService.getCurrentLocation();
+      
+      const data = await database.getEvents(
+        user.id,
+        location?.latitude,
+        location?.longitude
+      );
+      
+      if (location && !cachedLocation) {
+        await database.updateUserLocation(user.id, location.latitude, location.longitude);
+      }
+      
       setEvents(data);
     } catch (error) {
       console.error("Error loading events:", error);

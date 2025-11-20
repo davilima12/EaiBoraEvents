@@ -9,6 +9,7 @@ import { CategoryChip } from "@/components/CategoryChip";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/hooks/useAuth";
 import { database } from "@/services/database";
+import { locationService } from "@/services/location";
 import { EVENT_CATEGORIES, EventCategory, Event } from "@/types";
 import { Spacing, BorderRadius } from "@/constants/theme";
 
@@ -25,7 +26,14 @@ export default function ExploreScreen() {
   const loadEvents = useCallback(async () => {
     if (!user) return;
     try {
-      const data = await database.getEvents(user.id);
+      const cachedLocation = locationService.getCachedLocation();
+      const location = cachedLocation || await locationService.getCurrentLocation();
+      
+      const data = await database.getEvents(
+        user.id,
+        location?.latitude,
+        location?.longitude
+      );
       setAllEvents(data);
     } catch (error) {
       console.error("Error loading events:", error);

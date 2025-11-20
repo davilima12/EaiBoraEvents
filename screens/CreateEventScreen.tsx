@@ -1,7 +1,8 @@
 import React, { useState } from "react";
-import { View, StyleSheet, TextInput, Pressable, Alert } from "react-native";
+import { View, StyleSheet, TextInput, Pressable, Alert, Image, Modal } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
 import { ScreenKeyboardAwareScrollView } from "@/components/ScreenKeyboardAwareScrollView";
 import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
@@ -9,6 +10,7 @@ import { CategoryChip } from "@/components/CategoryChip";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/hooks/useAuth";
 import { database } from "@/services/database";
+import { locationService } from "@/services/location";
 import { EVENT_CATEGORIES, EventCategory } from "@/types";
 import { Spacing, BorderRadius } from "@/constants/theme";
 
@@ -21,7 +23,11 @@ export default function CreateEventScreen() {
   const [selectedCategory, setSelectedCategory] = useState<EventCategory | null>(null);
   const [location, setLocation] = useState("");
   const [date, setDate] = useState("");
+  const [selectedImages, setSelectedImages] = useState<string[]>([]);
+  const [eventCoordinates, setEventCoordinates] = useState<{ latitude: number; longitude: number } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showCoordinateModal, setShowCoordinateModal] = useState(false);
+  const [manualCoords, setManualCoords] = useState("");
 
   const handleCancel = () => {
     if (title || description) {
@@ -42,9 +48,101 @@ export default function CreateEventScreen() {
     }
   };
 
+  const handlePickImages = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(
+          "Permissão necessária",
+          "Precisamos de permissão para acessar suas fotos."
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsMultipleSelection: false,
+        aspect: [16, 9],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets) {
+        const imageUris = result.assets.map((asset) => asset.uri);
+        setSelectedImages(imageUris);
+      }
+    } catch (error) {
+      console.error("Error picking images:", error);
+      Alert.alert("Erro", "Não foi possível selecionar as imagens.");
+    }
+  };
+
+  const handleSetVenueLocation = () => {
+    Alert.alert(
+      "Definir Localização do Evento",
+      "Como deseja definir a localização onde o evento acontecerá?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        { text: "Usar Minha Posição Atual", onPress: handleUseCurrentLocation },
+        { text: "Inserir Coordenadas Manualmente", onPress: handleManualCoordinates },
+      ]
+    );
+  };
+
+  const handleUseCurrentLocation = async () => {
+    try {
+      const currentLocation = await locationService.getCurrentLocation();
+      if (currentLocation) {
+        setEventCoordinates(currentLocation);
+        Alert.alert("Local do Evento Definido", "O evento acontecerá na sua localização atual.");
+      } else {
+        Alert.alert("Erro", "Não foi possível obter sua localização atual.");
+      }
+    } catch (error) {
+      console.error("Error getting current location:", error);
+      Alert.alert("Erro", "Não foi possível obter sua localização atual.");
+    }
+  };
+
+  const handleManualCoordinates = () => {
+    setShowCoordinateModal(true);
+  };
+
+  const handleSaveManualCoordinates = () => {
+    if (manualCoords) {
+      const [lat, lon] = manualCoords.split(",").map((s) => parseFloat(s.trim()));
+      if (!isNaN(lat) && !isNaN(lon)) {
+        setEventCoordinates({ latitude: lat, longitude: lon });
+        setShowCoordinateModal(false);
+        setManualCoords("");
+        Alert.alert("Local do Evento Definido", "As coordenadas do evento foram salvas.");
+      } else {
+        Alert.alert("Erro", "Coordenadas inválidas. Use o formato: latitude,longitude");
+      }
+    }
+  };
+
   const handlePost = async () => {
     if (!title || !description || !selectedCategory || !location || !date || !user) {
       Alert.alert("Campos obrigatórios", "Por favor, preencha todos os campos.");
+      return;
+    }
+
+    if (selectedImages.length === 0) {
+      Alert.alert("Imagem necessária", "Por favor, adicione pelo menos uma foto do evento.");
+      return;
+    }
+
+    if (!eventCoordinates) {
+      Alert.alert(
+        "Localização não definida",
+        "Por favor, defina onde o evento acontecerá.",
+        [
+          { text: "Cancelar", style: "cancel" },
+          { text: "Definir Agora", onPress: () => {
+            handleSetVenueLocation();
+          }},
+        ]
+      );
       return;
     }
 
@@ -57,12 +155,12 @@ export default function CreateEventScreen() {
         businessId: user.id,
         businessName: user.name,
         businessAvatar: user.avatar,
-        images: ["https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800"],
+        images: selectedImages,
         date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
         location: {
           address: location,
-          latitude: -23.5505,
-          longitude: -46.6333,
+          latitude: eventCoordinates.latitude,
+          longitude: eventCoordinates.longitude,
         },
         category: selectedCategory,
       });
@@ -85,15 +183,32 @@ export default function CreateEventScreen() {
       <View style={styles.container}>
         <View style={styles.section}>
           <View style={styles.uploadSection}>
-            <Pressable
-              style={[styles.uploadBox, { backgroundColor: theme.backgroundSecondary }]}
-              onPress={() => {}}
-            >
-              <Feather name="image" size={32} color={theme.textSecondary} />
-              <ThemedText style={[styles.uploadText, { color: theme.textSecondary }]}>
-                Adicionar fotos ou vídeos
-              </ThemedText>
-            </Pressable>
+            {selectedImages.length > 0 ? (
+              <View>
+                <Image
+                  source={{ uri: selectedImages[0] }}
+                  style={styles.selectedImage}
+                />
+                <Pressable
+                  style={styles.changeImageButton}
+                  onPress={handlePickImages}
+                >
+                  <ThemedText style={[styles.changeImageText, { color: theme.primary }]}>
+                    Alterar Foto
+                  </ThemedText>
+                </Pressable>
+              </View>
+            ) : (
+              <Pressable
+                style={[styles.uploadBox, { backgroundColor: theme.backgroundSecondary }]}
+                onPress={handlePickImages}
+              >
+                <Feather name="image" size={32} color={theme.textSecondary} />
+                <ThemedText style={[styles.uploadText, { color: theme.textSecondary }]}>
+                  Adicionar fotos ou vídeos
+                </ThemedText>
+              </Pressable>
+            )}
           </View>
         </View>
 
@@ -138,13 +253,22 @@ export default function CreateEventScreen() {
 
         <View style={styles.section}>
           <ThemedText style={styles.label}>Localização *</ThemedText>
+          <TextInput
+            style={[styles.input, { backgroundColor: theme.backgroundSecondary, color: theme.text }]}
+            placeholder="Ex: Rua Augusta, 1234 - São Paulo"
+            placeholderTextColor={theme.textSecondary}
+            value={location}
+            onChangeText={setLocation}
+          />
           <Pressable
-            style={[styles.input, styles.dateInput, { backgroundColor: theme.backgroundSecondary }]}
-            onPress={() => {}}
+            style={styles.locationButton}
+            onPress={handleSetVenueLocation}
           >
-            <Feather name="map-pin" size={20} color={theme.textSecondary} />
-            <ThemedText style={[styles.dateText, { color: location ? theme.text : theme.textSecondary }]}>
-              {location || "Selecione o local"}
+            <Feather name="map-pin" size={16} color={theme.primary} />
+            <ThemedText style={[styles.locationButtonText, { color: theme.primary }]}>
+              {eventCoordinates 
+                ? `Local definido (${eventCoordinates.latitude.toFixed(4)}, ${eventCoordinates.longitude.toFixed(4)})`
+                : "Definir localização do evento"}
             </ThemedText>
           </Pressable>
         </View>
@@ -181,6 +305,50 @@ export default function CreateEventScreen() {
           </Pressable>
         </View>
       </View>
+
+      <Modal
+        visible={showCoordinateModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowCoordinateModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: theme.background }]}>
+            <ThemedText style={styles.modalTitle}>Coordenadas do Evento</ThemedText>
+            <ThemedText style={[styles.modalDescription, { color: theme.textSecondary }]}>
+              Digite as coordenadas no formato:{"\n"}latitude,longitude
+            </ThemedText>
+            <ThemedText style={[styles.modalExample, { color: theme.textSecondary }]}>
+              Exemplo: -23.5505,-46.6333
+            </ThemedText>
+            <TextInput
+              style={[styles.modalInput, { backgroundColor: theme.backgroundSecondary, color: theme.text }]}
+              placeholder="-23.5505,-46.6333"
+              placeholderTextColor={theme.textSecondary}
+              value={manualCoords}
+              onChangeText={setManualCoords}
+              keyboardType="numbers-and-punctuation"
+            />
+            <View style={styles.modalButtons}>
+              <Pressable
+                style={[styles.modalButton, styles.modalButtonCancel, { backgroundColor: theme.backgroundSecondary }]}
+                onPress={() => {
+                  setShowCoordinateModal(false);
+                  setManualCoords("");
+                }}
+              >
+                <ThemedText style={{ color: theme.textSecondary }}>Cancelar</ThemedText>
+              </Pressable>
+              <Pressable
+                style={[styles.modalButton, styles.modalButtonSave, { backgroundColor: theme.primary }]}
+                onPress={handleSaveManualCoordinates}
+              >
+                <ThemedText style={{ color: "#FFFFFF" }}>Salvar</ThemedText>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScreenKeyboardAwareScrollView>
   );
 }
@@ -207,6 +375,19 @@ const styles = StyleSheet.create({
   uploadText: {
     marginTop: Spacing.sm,
     fontSize: 14,
+  },
+  selectedImage: {
+    width: "100%",
+    height: 200,
+    borderRadius: BorderRadius.sm,
+  },
+  changeImageButton: {
+    marginTop: Spacing.sm,
+    alignItems: "center",
+  },
+  changeImageText: {
+    fontSize: 14,
+    fontWeight: "600",
   },
   label: {
     fontSize: 14,
@@ -255,4 +436,59 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
+  locationButton: {
+    marginTop: Spacing.sm,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+    paddingVertical: Spacing.sm,
+  },
+  locationButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    width: "85%",
+    borderRadius: BorderRadius.md,
+    padding: Spacing.xl,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: Spacing.sm,
+  },
+  modalDescription: {
+    fontSize: 14,
+    marginBottom: Spacing.xs,
+  },
+  modalExample: {
+    fontSize: 12,
+    marginBottom: Spacing.md,
+  },
+  modalInput: {
+    minHeight: 48,
+    borderRadius: BorderRadius.xs,
+    paddingHorizontal: Spacing.md,
+    fontSize: 16,
+    marginBottom: Spacing.lg,
+  },
+  modalButtons: {
+    flexDirection: "row",
+    gap: Spacing.md,
+  },
+  modalButton: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: BorderRadius.xs,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalButtonCancel: {},
+  modalButtonSave: {},
 });
