@@ -1,5 +1,14 @@
 export type AccountType = "personal" | "business";
 
+export type MediaType = "image" | "video";
+
+export interface MediaItem {
+  type: MediaType;
+  uri: string;
+  thumbnail?: string;
+  duration?: number;
+}
+
 export interface User {
   id: string;
   name: string;
@@ -18,6 +27,7 @@ export interface Event {
   businessName: string;
   businessAvatar?: string;
   images: string[];
+  media: MediaItem[];
   date: string;
   location: {
     address: string;

@@ -43,6 +43,7 @@ class DatabaseService {
         businessName TEXT NOT NULL,
         businessAvatar TEXT,
         images TEXT NOT NULL,
+        media TEXT,
         date TEXT NOT NULL,
         address TEXT NOT NULL,
         latitude REAL NOT NULL,
@@ -203,11 +204,11 @@ class DatabaseService {
     
     await this.db.runAsync(
       `INSERT INTO events (id, title, description, businessId, businessName, businessAvatar, 
-        images, date, address, latitude, longitude, category)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        images, media, date, address, latitude, longitude, category)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [event.id, event.title, event.description, event.businessId, event.businessName,
-       event.businessAvatar || null, JSON.stringify(event.images), event.date,
-       event.location.address, event.location.latitude, event.location.longitude, event.category]
+       event.businessAvatar || null, JSON.stringify(event.images), JSON.stringify(event.media),
+       event.date, event.location.address, event.location.latitude, event.location.longitude, event.category]
     );
   }
 
@@ -224,27 +225,36 @@ class DatabaseService {
       [userId, userId]
     );
 
-    return events.map((e) => ({
-      id: e.id,
-      title: e.title,
-      description: e.description,
-      businessId: e.businessId,
-      businessName: e.businessName,
-      businessAvatar: e.businessAvatar,
-      images: JSON.parse(e.images),
-      date: e.date,
-      location: {
-        address: e.address,
-        latitude: e.latitude,
-        longitude: e.longitude,
-      },
-      category: e.category,
-      likes: e.likes,
-      isLiked: Boolean(e.isLiked),
-      isSaved: Boolean(e.isSaved),
-      comments: [],
-      distance: userLat && userLon ? this.calculateDistance(userLat, userLon, e.latitude, e.longitude) : 0,
-    }));
+    return events.map((e) => {
+      const images = JSON.parse(e.images);
+      const media = e.media ? JSON.parse(e.media) : images.map((uri: string) => ({
+        type: "image" as const,
+        uri,
+      }));
+      
+      return {
+        id: e.id,
+        title: e.title,
+        description: e.description,
+        businessId: e.businessId,
+        businessName: e.businessName,
+        businessAvatar: e.businessAvatar,
+        images,
+        media,
+        date: e.date,
+        location: {
+          address: e.address,
+          latitude: e.latitude,
+          longitude: e.longitude,
+        },
+        category: e.category,
+        likes: e.likes,
+        isLiked: Boolean(e.isLiked),
+        isSaved: Boolean(e.isSaved),
+        comments: [],
+        distance: userLat && userLon ? this.calculateDistance(userLat, userLon, e.latitude, e.longitude) : 0,
+      };
+    });
   }
 
   async getEventById(eventId: string, userId: string): Promise<Event | null> {
@@ -263,6 +273,11 @@ class DatabaseService {
     if (!e) return null;
 
     const comments = await this.getComments(eventId);
+    const images = JSON.parse(e.images);
+    const media = e.media ? JSON.parse(e.media) : images.map((uri: string) => ({
+      type: "image" as const,
+      uri,
+    }));
 
     return {
       id: e.id,
@@ -271,7 +286,8 @@ class DatabaseService {
       businessId: e.businessId,
       businessName: e.businessName,
       businessAvatar: e.businessAvatar,
-      images: JSON.parse(e.images),
+      images,
+      media,
       date: e.date,
       location: {
         address: e.address,
@@ -348,27 +364,36 @@ class DatabaseService {
       [userId, userId]
     );
 
-    return events.map((e) => ({
-      id: e.id,
-      title: e.title,
-      description: e.description,
-      businessId: e.businessId,
-      businessName: e.businessName,
-      businessAvatar: e.businessAvatar,
-      images: JSON.parse(e.images),
-      date: e.date,
-      location: {
-        address: e.address,
-        latitude: e.latitude,
-        longitude: e.longitude,
-      },
-      category: e.category,
-      likes: e.likes,
-      isLiked: Boolean(e.isLiked),
-      isSaved: true,
-      comments: [],
-      distance: 0,
-    }));
+    return events.map((e) => {
+      const images = JSON.parse(e.images);
+      const media = e.media ? JSON.parse(e.media) : images.map((uri: string) => ({
+        type: "image" as const,
+        uri,
+      }));
+      
+      return {
+        id: e.id,
+        title: e.title,
+        description: e.description,
+        businessId: e.businessId,
+        businessName: e.businessName,
+        businessAvatar: e.businessAvatar,
+        images,
+        media,
+        date: e.date,
+        location: {
+          address: e.address,
+          latitude: e.latitude,
+          longitude: e.longitude,
+        },
+        category: e.category,
+        likes: e.likes,
+        isLiked: Boolean(e.isLiked),
+        isSaved: true,
+        comments: [],
+        distance: 0,
+      };
+    });
   }
 
   async addComment(eventId: string, userId: string, userName: string, userAvatar: string | undefined, text: string): Promise<void> {
@@ -541,13 +566,24 @@ class DatabaseService {
         businessId: "mock-business-1",
         businessName: "Blue Note Bar",
         images: ["https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800"],
+        media: [
+          {
+            type: "video" as const,
+            uri: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+            thumbnail: "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800",
+          },
+          {
+            type: "image" as const,
+            uri: "https://images.unsplash.com/photo-1511192336575-5a79af67a629?w=800",
+          },
+        ],
         date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
         location: {
           address: "Rua Augusta, 1234 - São Paulo",
           latitude: -23.5505,
           longitude: -46.6333,
         },
-        category: "music",
+        category: "music" as const,
       },
       {
         id: "2",
@@ -556,13 +592,24 @@ class DatabaseService {
         businessId: "mock-business-2",
         businessName: "Food Park SP",
         images: ["https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=800"],
+        media: [
+          {
+            type: "video" as const,
+            uri: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+            thumbnail: "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=800",
+          },
+          {
+            type: "image" as const,
+            uri: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800",
+          },
+        ],
         date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
         location: {
           address: "Parque Ibirapuera - São Paulo",
           latitude: -23.5875,
           longitude: -46.6576,
         },
-        category: "food",
+        category: "food" as const,
       },
       {
         id: "3",
@@ -571,18 +618,124 @@ class DatabaseService {
         businessId: "mock-business-3",
         businessName: "Run Club SP",
         images: ["https://images.unsplash.com/photo-1502904550040-7534597429ae?w=800"],
+        media: [
+          {
+            type: "image" as const,
+            uri: "https://images.unsplash.com/photo-1502904550040-7534597429ae?w=800",
+          },
+          {
+            type: "video" as const,
+            uri: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+            thumbnail: "https://images.unsplash.com/photo-1486218119243-13883505764c?w=800",
+          },
+        ],
         date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
         location: {
           address: "Parque Villa-Lobos - São Paulo",
           latitude: -23.5475,
           longitude: -46.7203,
         },
-        category: "sports",
+        category: "sports" as const,
       },
     ];
 
     for (const event of mockEvents) {
       await this.createEvent(event);
+    }
+
+    const chatCount = await this.db.getFirstAsync<{ count: number }>(
+      "SELECT COUNT(*) as count FROM chats"
+    );
+
+    if (chatCount && chatCount.count === 0) {
+      const mockChats = [
+        {
+          id: "chat-1",
+          userId1: "mock-user",
+          userId2: "mock-business-1",
+          messages: [
+            {
+              id: "msg-1",
+              senderId: "mock-business-1",
+              text: "Olá! Obrigado pelo interesse no nosso evento de jazz!",
+              createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+            },
+            {
+              id: "msg-2",
+              senderId: "mock-user",
+              text: "Oi! Ainda tem ingressos disponíveis?",
+              createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
+            },
+            {
+              id: "msg-3",
+              senderId: "mock-business-1",
+              text: "Sim! Temos ingressos disponíveis. Você pode reservar pelo nosso site.",
+              createdAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+            },
+          ],
+        },
+        {
+          id: "chat-2",
+          userId1: "mock-user",
+          userId2: "mock-business-2",
+          messages: [
+            {
+              id: "msg-4",
+              senderId: "mock-business-2",
+              text: "Bora pro festival de comida de rua? 🎉",
+              createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+            },
+            {
+              id: "msg-5",
+              senderId: "mock-user",
+              text: "Com certeza! Que horas começa?",
+              createdAt: new Date(Date.now() - 23 * 60 * 60 * 1000).toISOString(),
+            },
+            {
+              id: "msg-6",
+              senderId: "mock-business-2",
+              text: "Começa às 11h e vai até às 22h. Teremos mais de 30 food trucks!",
+              createdAt: new Date(Date.now() - 22 * 60 * 60 * 1000).toISOString(),
+            },
+          ],
+        },
+        {
+          id: "chat-3",
+          userId1: "mock-user",
+          userId2: "mock-business-3",
+          messages: [
+            {
+              id: "msg-7",
+              senderId: "mock-user",
+              text: "Primeira vez participando! Preciso levar algo específico?",
+              createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+            },
+            {
+              id: "msg-8",
+              senderId: "mock-business-3",
+              text: "Bem-vindo! Leve roupa confortável, tênis adequado e uma garrafa d'água.",
+              createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000 + 5 * 60 * 1000).toISOString(),
+            },
+          ],
+        },
+      ];
+
+      for (const chat of mockChats) {
+        const lastMessage = chat.messages[chat.messages.length - 1];
+        
+        await this.db.runAsync(
+          `INSERT INTO chats (id, userId1, userId2, lastMessage, lastMessageTime) 
+           VALUES (?, ?, ?, ?, ?)`,
+          [chat.id, chat.userId1, chat.userId2, lastMessage.text, lastMessage.createdAt]
+        );
+
+        for (const message of chat.messages) {
+          await this.db.runAsync(
+            "INSERT INTO messages (id, chatId, senderId, text, createdAt) VALUES (?, ?, ?, ?, ?)",
+            [message.id, chat.id, message.senderId, message.text, message.createdAt]
+          );
+        }
+      }
     }
   }
 }

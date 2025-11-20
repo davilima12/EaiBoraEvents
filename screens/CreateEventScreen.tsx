@@ -156,6 +156,10 @@ export default function CreateEventScreen() {
         businessName: user.name,
         businessAvatar: user.avatar,
         images: selectedImages,
+        media: selectedImages.map(uri => ({
+          type: "image" as const,
+          uri,
+        })),
         date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
         location: {
           address: location,

@@ -2,12 +2,13 @@ import React from "react";
 import { View, StyleSheet, Pressable, Image, Dimensions } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { ThemedText } from "@/components/ThemedText";
+import { VideoPlayer } from "@/components/VideoPlayer";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { Event } from "@/types";
 
 const { width } = Dimensions.get("window");
-const CARD_WIDTH = width - Spacing.lg * 2;
+const CARD_WIDTH = width - Spacing.xl * 2;
 
 interface EventCardProps {
   event: Event;
@@ -29,17 +30,27 @@ export function EventCard({ event, onPress, onLike, onSave }: EventCardProps) {
     });
   };
 
+  const firstMedia = event.media?.[0] || { type: "image", uri: event.images[0] };
+
   return (
     <Pressable
       style={[styles.container, { backgroundColor: theme.backgroundDefault }]}
       onPress={onPress}
       android_ripple={{ color: theme.primary + "20" }}
     >
-      <Image
-        source={{ uri: event.images[0] }}
-        style={styles.image}
-        resizeMode="cover"
-      />
+      {firstMedia.type === "video" ? (
+        <VideoPlayer
+          uri={firstMedia.uri}
+          thumbnail={firstMedia.thumbnail}
+          style={styles.image}
+        />
+      ) : (
+        <Image
+          source={{ uri: firstMedia.uri }}
+          style={styles.image}
+          resizeMode="cover"
+        />
+      )}
       
       <View style={styles.content}>
         <View style={styles.header}>
@@ -123,10 +134,10 @@ export function EventCard({ event, onPress, onLike, onSave }: EventCardProps) {
 const styles = StyleSheet.create({
   container: {
     width: CARD_WIDTH,
-    marginHorizontal: Spacing.lg,
     marginBottom: Spacing.lg,
     borderRadius: BorderRadius.sm,
     overflow: "hidden",
+    alignSelf: "center",
   },
   image: {
     width: "100%",

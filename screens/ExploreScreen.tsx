@@ -101,6 +101,7 @@ export default function ExploreScreen() {
       </View>
 
       <FlatList
+        showsVerticalScrollIndicator={false}
         data={filteredEvents}
         numColumns={2}
         contentContainerStyle={[

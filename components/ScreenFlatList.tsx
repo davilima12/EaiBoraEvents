@@ -15,6 +15,7 @@ export function ScreenFlatList<T>({
 
   return (
     <FlatList
+      showsVerticalScrollIndicator={false}
       style={[
         styles.container,
         { backgroundColor: theme.backgroundRoot },

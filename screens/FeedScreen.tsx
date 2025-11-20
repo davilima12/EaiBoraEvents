@@ -98,6 +98,7 @@ export default function FeedScreen() {
   if (events.length === 0) {
     return (
       <ScreenScrollView
+        showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.emptyContainer}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -118,6 +119,7 @@ export default function FeedScreen() {
   return (
     <>
       <ScreenScrollView
+        showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl
