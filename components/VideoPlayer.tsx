@@ -1,8 +1,11 @@
-import React, { useState, useEffect } from "react";
-import { View, StyleSheet, Pressable, ActivityIndicator } from "react-native";
+import React, { useState, useEffect, useRef } from "react";
+import { View, StyleSheet, Pressable, ActivityIndicator, Dimensions } from "react-native";
 import { VideoView, useVideoPlayer } from "expo-video";
 import { Feather } from "@expo/vector-icons";
 import { useTheme } from "@/hooks/useTheme";
+import { useFocusEffect } from "@react-navigation/native";
+
+const screenHeight = Dimensions.get("window").height;
 
 interface VideoPlayerProps {
   uri: string;
@@ -13,12 +16,13 @@ interface VideoPlayerProps {
 export function VideoPlayer({ uri, thumbnail, style }: VideoPlayerProps) {
   const { theme } = useTheme();
   const [isLoading, setIsLoading] = useState(true);
-  
+  const [isScreenFocused, setIsScreenFocused] = useState(true); // Novo estado para foco da tela
   const player = useVideoPlayer(uri, (player) => {
     player.loop = true;
-    player.muted = true;
-    player.play();
+    player.muted = false;
   });
+
+  const videoRef = useRef<View>(null);
 
   useEffect(() => {
     if (player) {
@@ -26,40 +30,59 @@ export function VideoPlayer({ uri, thumbnail, style }: VideoPlayerProps) {
     }
   }, [player]);
 
-  const togglePlayPause = () => {
-    if (player) {
-      if (player.playing) {
-        player.pause();
-      } else {
-        player.play();
-      }
+  const checkVisibility = () => {
+    if (!isScreenFocused) return; // Verificar se a tela está focada antes de continuar
+
+    if (videoRef.current) {
+      videoRef.current.measure((x, y, width, height, pageX, pageY) => {
+        const isVisible = pageY >= 0 && pageY + height <= screenHeight;
+        if (player) {
+          if (isVisible) {
+            player.play();
+          } else {
+            player.pause();
+          }
+        }
+      });
     }
   };
 
+  useEffect(() => {
+    const interval = setInterval(checkVisibility, 500);
+    return () => clearInterval(interval);
+  }, [isScreenFocused]); // Adicionar dependência do foco da tela
+
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log("Screen focused: Playing video");
+      setIsScreenFocused(true); // Atualizar estado quando a tela ganha foco
+      if (player) {
+        player.play();
+      }
+
+      return () => {
+        console.log("Screen unfocused: Pausing video");
+        setIsScreenFocused(false); // Atualizar estado quando a tela perde foco
+        if (player) {
+          player.pause();
+        }
+      };
+    }, [player])
+  );
+
   return (
-    <View style={[styles.container, style]}>
+    <View ref={videoRef} style={[styles.container, style]}>
       <VideoView
         player={player}
         style={styles.video}
         contentFit="cover"
         nativeControls={false}
       />
-      
       {isLoading ? (
-        <View style={[styles.skeleton, { backgroundColor: theme.backgroundSecondary }]}>
+        <View style={[styles.skeleton, { backgroundColor: theme.backgroundSecondary }]}> 
           <View style={styles.skeletonShimmer} />
         </View>
       ) : null}
-      
-      <Pressable style={styles.playButton} onPress={togglePlayPause}>
-        <View style={[styles.playButtonInner, { backgroundColor: "rgba(0, 0, 0, 0.6)" }]}>
-          <Feather
-            name={player?.playing ? "pause" : "play"}
-            size={32}
-            color="#FFFFFF"
-          />
-        </View>
-      </Pressable>
     </View>
   );
 }
@@ -80,18 +103,5 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
     backgroundColor: "rgba(255, 255, 255, 0.1)",
-  },
-  playButton: {
-    position: "absolute",
-    top: "50%",
-    left: "50%",
-    transform: [{ translateX: -32 }, { translateY: -32 }],
-  },
-  playButtonInner: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    justifyContent: "center",
-    alignItems: "center",
   },
 });

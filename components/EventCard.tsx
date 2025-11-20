@@ -8,7 +8,7 @@ import { Spacing, BorderRadius } from "@/constants/theme";
 import { Event } from "@/types";
 
 const { width } = Dimensions.get("window");
-const CARD_WIDTH = width - Spacing.xl * 2;
+const CARD_WIDTH = width - Spacing.md * 2; // aumenta largura do card
 
 interface EventCardProps {
   event: Event;
@@ -17,9 +17,10 @@ interface EventCardProps {
   onSave: () => void;
   onComment: () => void;
   onBusinessPress?: () => void;
+  onVideoPress?: () => void;
 }
 
-export function EventCard({ event, onPress, onLike, onSave, onComment, onBusinessPress }: EventCardProps) {
+export function EventCard({ event, onPress, onLike, onSave, onComment, onBusinessPress, onVideoPress }: EventCardProps) {
   const { theme } = useTheme();
 
   const formatDate = (dateString: string) => {
@@ -35,17 +36,15 @@ export function EventCard({ event, onPress, onLike, onSave, onComment, onBusines
   const firstMedia = event.media?.[0] || { type: "image", uri: event.images[0] };
 
   return (
-    <Pressable
-      style={[styles.container, { backgroundColor: theme.backgroundDefault }]}
-      onPress={onPress}
-      android_ripple={{ color: theme.primary + "20" }}
-    >
+    <View style={[styles.container, { backgroundColor: theme.backgroundDefault }]}>
       {firstMedia.type === "video" ? (
-        <VideoPlayer
-          uri={firstMedia.uri}
-          thumbnail={firstMedia.thumbnail}
-          style={styles.image}
-        />
+        <Pressable onPress={onVideoPress} style={styles.image}>
+          <VideoPlayer
+            uri={firstMedia.uri}
+            thumbnail={firstMedia.thumbnail}
+            style={{ width: "100%", height: "100%" }}
+          />
+        </Pressable>
       ) : (
         <Image
           source={{ uri: firstMedia.uri }}
@@ -53,7 +52,6 @@ export function EventCard({ event, onPress, onLike, onSave, onComment, onBusines
           resizeMode="cover"
         />
       )}
-      
       <View style={styles.content}>
         <View style={styles.header}>
           <Pressable
@@ -81,25 +79,24 @@ export function EventCard({ event, onPress, onLike, onSave, onComment, onBusines
             </View>
           </Pressable>
         </View>
-
-        <ThemedText style={styles.title}>{event.title}</ThemedText>
-        
-        <View style={styles.metadata}>
-          <View style={styles.metadataItem}>
-            <Feather name="calendar" size={14} color={theme.textSecondary} />
-            <ThemedText style={[styles.metadataText, { color: theme.textSecondary }]}>
-              {formatDate(event.date)}
-            </ThemedText>
+        <Pressable onPress={onPress} style={{ marginBottom: Spacing.md }}>
+          <ThemedText style={styles.title}>{event.title}</ThemedText>
+          <View style={styles.metadata}>
+            <View style={styles.metadataItem}>
+              <Feather name="calendar" size={14} color={theme.textSecondary} />
+              <ThemedText style={[styles.metadataText, { color: theme.textSecondary }]}>
+                {formatDate(event.date)}
+              </ThemedText>
+            </View>
           </View>
-        </View>
 
-        <ThemedText
-          style={[styles.description, { color: theme.textSecondary }]}
-          numberOfLines={2}
-        >
-          {event.description}
-        </ThemedText>
-
+          <ThemedText
+            style={[styles.description, { color: theme.textSecondary }]}
+            numberOfLines={2}
+          >
+            {event.description}
+          </ThemedText>
+        </Pressable>
         <View style={styles.actions}>
           <Pressable
             style={styles.actionButton}
@@ -118,7 +115,6 @@ export function EventCard({ event, onPress, onLike, onSave, onComment, onBusines
               {event.likes}
             </ThemedText>
           </Pressable>
-
           <Pressable
             style={styles.actionButton}
             onPress={(e) => {
@@ -135,7 +131,6 @@ export function EventCard({ event, onPress, onLike, onSave, onComment, onBusines
               {event.comments?.length || 0}
             </ThemedText>
           </Pressable>
-
           <Pressable
             style={styles.actionButton}
             onPress={(e) => {
@@ -152,7 +147,7 @@ export function EventCard({ event, onPress, onLike, onSave, onComment, onBusines
           </Pressable>
         </View>
       </View>
-    </Pressable>
+    </View>
   );
 }
 
@@ -166,7 +161,7 @@ const styles = StyleSheet.create({
   },
   image: {
     width: "100%",
-    height: 240,
+    height: 500, // aumenta altura da imagem
   },
   content: {
     padding: Spacing.lg,

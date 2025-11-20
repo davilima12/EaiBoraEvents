@@ -119,7 +119,7 @@ export default function BusinessProfileScreen() {
           </View>
         ) : events.length === 0 ? (
           <EmptyState
-            illustration={require("@/assets/images/illustrations/no_events_illustration.png")}
+            illustration={require("@/assets/images/illustrations/no_events_nearby_illustration.png")}
             title="Nenhum evento"
             description="Esta empresa ainda não publicou eventos."
           />

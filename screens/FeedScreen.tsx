@@ -11,8 +11,10 @@ import { database } from "@/services/database";
 import { locationService } from "@/services/location";
 import { Event } from "@/types";
 import { Spacing } from "@/constants/theme";
+import { useScreenInsets } from "@/hooks/useScreenInsets";
 
 export default function FeedScreen() {
+  const insets = useScreenInsets();
   const navigation = useNavigation();
   const { user } = useAuth();
   const { theme } = useTheme();
@@ -128,7 +130,10 @@ export default function FeedScreen() {
     <>
       <ScreenScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={{
+          paddingTop: 100,
+          paddingBottom: 100,
+        }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

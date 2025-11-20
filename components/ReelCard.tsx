@@ -6,6 +6,7 @@ import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { Event } from "@/types";
+import { useFocusEffect } from "@react-navigation/native";
 
 const { width, height } = Dimensions.get("window");
 
@@ -21,7 +22,8 @@ interface ReelCardProps {
 export function ReelCard({ event, isActive, onLike, onComment, onSave, onBusinessPress }: ReelCardProps) {
   const { theme } = useTheme();
   const [isLoading, setIsLoading] = useState(true);
-  
+  const [isScreenFocused, setIsScreenFocused] = useState(true);
+
   const videoMedia = event.media?.find((m) => m.type === "video");
   if (!videoMedia) return null;
 
@@ -33,16 +35,47 @@ export function ReelCard({ event, isActive, onLike, onComment, onSave, onBusines
     }
   });
 
+  useFocusEffect(
+    React.useCallback(() => {
+      setIsScreenFocused(true);
+      if (player && isActive) {
+        try {
+          player.play();
+        } catch (e) {
+          console.warn('Erro ao dar play:', e);
+        }
+      }
+      return () => {
+        setIsScreenFocused(false);
+        if (player) {
+          try {
+            player.pause();
+          } catch (e) {
+            console.warn('Erro ao pausar:', e);
+          }
+        }
+      };
+    }, [player, isActive])
+  );
+
   useEffect(() => {
     if (player) {
       setIsLoading(false);
-      if (isActive) {
-        player.play();
+      if (isActive && isScreenFocused) {
+        try {
+          player.play();
+        } catch (e) {
+          console.warn('Erro ao dar play:', e);
+        }
       } else {
-        player.pause();
+        try {
+          player.pause();
+        } catch (e) {
+          console.warn('Erro ao pausar:', e);
+        }
       }
     }
-  }, [isActive, player]);
+  }, [isActive, player, isScreenFocused]);
 
   const togglePlayPause = () => {
     if (player) {
@@ -209,7 +242,7 @@ const styles = StyleSheet.create({
   },
   bottomInfo: {
     position: "absolute",
-    bottom: 40,
+    bottom: 120, // antes era 40, agora mais acima
     left: Spacing.lg,
     right: 80,
     gap: Spacing.sm,
