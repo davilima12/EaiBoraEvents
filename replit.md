@@ -2,9 +2,9 @@
 
 ## Overview
 
-"eai bora" is a React Native mobile application built with Expo that connects users with local events. The app serves two distinct user types: individual users discovering nearby events and businesses posting events. It features a location-based feed, real-time chat, event search/filtering, and social interactions (likes, comments, saves).
+"eai bora" is a React Native mobile application built with Expo that connects users with local events. The app serves two distinct user types: individual users discovering nearby events and businesses posting events. It features a location-based feed, Instagram-style Reels for video content, real-time chat, event search/filtering, and social interactions (likes, comments, saves).
 
-The application uses a bottom tab navigation pattern with four main screens (Feed, Explore, Chat, Profile) and includes authentication flows supporting both personal and business accounts.
+The application uses a bottom tab navigation pattern with five main screens (Feed, Reels, Explore, Chat, Profile) and includes authentication flows supporting both personal and business accounts.
 
 ## User Preferences
 
@@ -19,8 +19,8 @@ Preferred communication style: Simple, everyday language.
 
 ### Navigation Structure
 - **React Navigation v7**: Native stack and bottom tab navigators
-- **Four-Tab Bottom Navigation**: Feed, Explore, Chat, Profile
-- **Modal Presentations**: Event details and event creation as modal screens
+- **Five-Tab Bottom Navigation**: Feed, Reels, Explore, Chat, Profile
+- **Modal Presentations**: Event details, event creation, and comments as modal screens
 - **Authentication Guard**: Root navigator switches between authenticated (MainTabs) and unauthenticated (Auth) flows
 - **Platform-Specific Blur Effects**: iOS uses BlurView for tab bar transparency, Android uses solid backgrounds
 
@@ -95,6 +95,12 @@ Preferred communication style: Simple, everyday language.
 
 ### Event Discovery
 - **Location-Based Feed**: Events sorted by proximity to user's location
+- **Instagram Reels**: Full-screen vertical video feed for video events
+  - Swipe up/down to navigate between videos
+  - Autoplay when video is visible
+  - Pause/play on tap
+  - Mute/unmute toggle
+  - Quick actions: like, comment, save
 - **Category Filtering**: Browse events by categories (Music, Food, Sports, etc.)
 - **Search Functionality**: Search events by title and description
 - **Distance Display**: Shows distance from user's current location
@@ -102,11 +108,12 @@ Preferred communication style: Simple, everyday language.
 ### Social Interactions
 - **Likes**: Users can like events, with real-time counter updates
 - **Saves**: Bookmark events for later viewing
-- **Comments**: Full commenting system on event detail screens:
+- **Comments**: Full commenting system with dedicated modal:
+  - Comments modal accessible via comment icon on event cards
   - Add new comments with multiline input
   - View all comments with user attribution
   - Timestamp formatting (e.g., "5m ago", "2h ago")
-  - Comment counter in event stats
+  - Comment counter displayed on event cards and reels
   - Empty state when no comments exist
 - **Share**: Share event details (UI present, functionality placeholder)
 
