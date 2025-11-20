@@ -153,8 +153,8 @@ export default function FeedScreen() {
 
 const styles = StyleSheet.create({
   scrollContent: {
-    paddingTop: Spacing.lg,
-    paddingBottom: Spacing.xl,
+    paddingTop: Spacing.xl,
+    paddingBottom: 100,
   },
   emptyContainer: {
     flex: 1,
