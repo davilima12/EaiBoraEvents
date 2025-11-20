@@ -1,35 +1,60 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { View, StyleSheet, TextInput, Pressable, FlatList } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useFocusEffect } from "@react-navigation/native";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { useTheme } from "@/hooks/useTheme";
-import { mockMessages } from "@/utils/mockData";
+import { useAuth } from "@/hooks/useAuth";
+import { database } from "@/services/database";
 import { Message } from "@/types";
 import { Spacing, BorderRadius } from "@/constants/theme";
 
 export default function ChatDetailScreen({ route }: any) {
-  const { contactId, contactName } = route.params;
+  const { chatId, contactId, contactName } = route.params;
   const { theme } = useTheme();
+  const { user } = useAuth();
   const insets = useSafeAreaInsets();
-  const [messages, setMessages] = useState<Message[]>(mockMessages.c1 || []);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState("");
+  const [currentChatId, setCurrentChatId] = useState<string | null>(chatId || null);
 
-  const handleSend = () => {
-    if (!inputText.trim()) return;
+  const loadMessages = useCallback(async () => {
+    if (!user || !contactId) return;
+    
+    try {
+      let chatIdToUse = currentChatId;
+      if (!chatIdToUse) {
+        chatIdToUse = await database.getOrCreateChat(user.id, contactId);
+        setCurrentChatId(chatIdToUse);
+      }
+      
+      const data = await database.getMessages(chatIdToUse);
+      setMessages(data);
+      
+      await database.markMessagesAsRead(chatIdToUse, user.id);
+    } catch (error) {
+      console.error("Error loading messages:", error);
+    }
+  }, [user, contactId, currentChatId]);
 
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      chatId: "c1",
-      senderId: "current",
-      text: inputText,
-      timestamp: new Date().toISOString(),
-      isSent: true,
-    };
+  useFocusEffect(
+    useCallback(() => {
+      loadMessages();
+    }, [loadMessages])
+  );
 
-    setMessages((prev) => [...prev, newMessage]);
-    setInputText("");
+  const handleSend = async () => {
+    if (!inputText.trim() || !user || !currentChatId) return;
+
+    try {
+      const newMessage = await database.sendMessage(currentChatId, user.id, inputText);
+      setMessages((prev) => [...prev, newMessage]);
+      setInputText("");
+    } catch (error) {
+      console.error("Error sending message:", error);
+    }
   };
 
   const formatTime = (timestamp: string) => {

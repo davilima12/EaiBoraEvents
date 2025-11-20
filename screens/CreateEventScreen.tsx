@@ -7,17 +7,21 @@ import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
 import { CategoryChip } from "@/components/CategoryChip";
 import { useTheme } from "@/hooks/useTheme";
+import { useAuth } from "@/hooks/useAuth";
+import { database } from "@/services/database";
 import { EVENT_CATEGORIES, EventCategory } from "@/types";
 import { Spacing, BorderRadius } from "@/constants/theme";
 
 export default function CreateEventScreen() {
   const navigation = useNavigation();
   const { theme } = useTheme();
+  const { user } = useAuth();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<EventCategory | null>(null);
   const [location, setLocation] = useState("");
   const [date, setDate] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleCancel = () => {
     if (title || description) {
@@ -38,15 +42,40 @@ export default function CreateEventScreen() {
     }
   };
 
-  const handlePost = () => {
-    if (!title || !description || !selectedCategory || !location || !date) {
+  const handlePost = async () => {
+    if (!title || !description || !selectedCategory || !location || !date || !user) {
       Alert.alert("Campos obrigatórios", "Por favor, preencha todos os campos.");
       return;
     }
 
-    Alert.alert("Sucesso", "Evento criado com sucesso!", [
-      { text: "OK", onPress: () => navigation.goBack() },
-    ]);
+    setIsSubmitting(true);
+    try {
+      await database.createEvent({
+        id: Math.random().toString(36).substring(7),
+        title,
+        description,
+        businessId: user.id,
+        businessName: user.name,
+        businessAvatar: user.avatar,
+        images: ["https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800"],
+        date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        location: {
+          address: location,
+          latitude: -23.5505,
+          longitude: -46.6333,
+        },
+        category: selectedCategory,
+      });
+
+      Alert.alert("Sucesso", "Evento criado com sucesso!", [
+        { text: "OK", onPress: () => navigation.goBack() },
+      ]);
+    } catch (error) {
+      console.error("Error creating event:", error);
+      Alert.alert("Erro", "Não foi possível criar o evento. Tente novamente.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const isFormValid = title && description && selectedCategory && location && date;

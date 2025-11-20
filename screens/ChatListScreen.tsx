@@ -1,19 +1,38 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { StyleSheet, FlatList } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { ScreenFlatList } from "@/components/ScreenFlatList";
 import { ChatPreviewCard } from "@/components/ChatPreviewCard";
 import { EmptyState } from "@/components/EmptyState";
-import { mockChats } from "@/utils/mockData";
+import { useAuth } from "@/hooks/useAuth";
+import { database } from "@/services/database";
 import { Chat } from "@/types";
 import { Spacing } from "@/constants/theme";
 
 export default function ChatListScreen() {
   const navigation = useNavigation();
-  const [chats, setChats] = useState<Chat[]>(mockChats);
+  const { user } = useAuth();
+  const [chats, setChats] = useState<Chat[]>([]);
+
+  const loadChats = useCallback(async () => {
+    if (!user) return;
+    try {
+      const data = await database.getChats(user.id);
+      setChats(data);
+    } catch (error) {
+      console.error("Error loading chats:", error);
+    }
+  }, [user]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadChats();
+    }, [loadChats])
+  );
 
   const handleChatPress = (chat: Chat) => {
     (navigation as any).navigate("ChatDetail", {
+      chatId: chat.id,
       contactId: chat.contactId,
       contactName: chat.contactName,
     });

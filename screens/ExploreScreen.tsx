@@ -1,25 +1,44 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { View, StyleSheet, TextInput, ScrollView, FlatList, Pressable, Image } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { CategoryChip } from "@/components/CategoryChip";
 import { useTheme } from "@/hooks/useTheme";
-import { mockEvents } from "@/utils/mockData";
-import { EVENT_CATEGORIES, EventCategory } from "@/types";
+import { useAuth } from "@/hooks/useAuth";
+import { database } from "@/services/database";
+import { EVENT_CATEGORIES, EventCategory, Event } from "@/types";
 import { Spacing, BorderRadius } from "@/constants/theme";
 
 export default function ExploreScreen() {
   const navigation = useNavigation();
   const { theme } = useTheme();
+  const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<EventCategory | null>(null);
   const [maxDistance, setMaxDistance] = useState(10);
+  const [allEvents, setAllEvents] = useState<Event[]>([]);
 
-  const filteredEvents = mockEvents.filter((event) => {
+  const loadEvents = useCallback(async () => {
+    if (!user) return;
+    try {
+      const data = await database.getEvents(user.id);
+      setAllEvents(data);
+    } catch (error) {
+      console.error("Error loading events:", error);
+    }
+  }, [user]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadEvents();
+    }, [loadEvents])
+  );
+
+  const filteredEvents = allEvents.filter((event) => {
     const matchesSearch = event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       event.description.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = !selectedCategory || event.category === selectedCategory;

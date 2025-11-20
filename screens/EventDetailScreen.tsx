@@ -1,12 +1,14 @@
-import React, { useState } from "react";
-import { View, StyleSheet, Image, Pressable, Dimensions } from "react-native";
+import React, { useState, useEffect } from "react";
+import { View, StyleSheet, Image, Pressable, Dimensions, ActivityIndicator } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
 import { ScreenScrollView } from "@/components/ScreenScrollView";
 import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
 import { useTheme } from "@/hooks/useTheme";
-import { mockEvents } from "@/utils/mockData";
+import { useAuth } from "@/hooks/useAuth";
+import { database } from "@/services/database";
+import { Event } from "@/types";
 import { Spacing, BorderRadius } from "@/constants/theme";
 
 const { width } = Dimensions.get("window");
@@ -15,10 +17,61 @@ export default function EventDetailScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const { theme } = useTheme();
+  const { user } = useAuth();
   const eventId = (route.params as any)?.eventId;
-  const event = mockEvents.find((e) => e.id === eventId);
-  const [isLiked, setIsLiked] = useState(event?.isLiked || false);
-  const [isSaved, setIsSaved] = useState(event?.isSaved || false);
+  const [event, setEvent] = useState<Event | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadEvent() {
+      if (!user || !eventId) return;
+      try {
+        const data = await database.getEventById(eventId, user.id);
+        setEvent(data);
+      } catch (error) {
+        console.error("Error loading event:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadEvent();
+  }, [eventId, user]);
+
+  const handleToggleLike = async () => {
+    if (!user || !eventId) return;
+    try {
+      const isLiked = await database.toggleLike(eventId, user.id);
+      if (event) {
+        setEvent({
+          ...event,
+          isLiked,
+          likes: isLiked ? event.likes + 1 : event.likes - 1,
+        });
+      }
+    } catch (error) {
+      console.error("Error toggling like:", error);
+    }
+  };
+
+  const handleToggleSave = async () => {
+    if (!user || !eventId) return;
+    try {
+      const isSaved = await database.toggleSave(eventId, user.id);
+      if (event) {
+        setEvent({ ...event, isSaved });
+      }
+    } catch (error) {
+      console.error("Error toggling save:", error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.errorContainer, { backgroundColor: theme.backgroundRoot }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
+      </View>
+    );
+  }
 
   if (!event) {
     return (
@@ -63,20 +116,20 @@ export default function EventDetailScreen() {
             </View>
           </View>
           <View style={styles.actions}>
-            <Pressable onPress={() => setIsLiked(!isLiked)}>
+            <Pressable onPress={handleToggleLike}>
               <Feather
                 name="heart"
                 size={24}
-                color={isLiked ? theme.accent : theme.text}
-                fill={isLiked ? theme.accent : "transparent"}
+                color={event.isLiked ? theme.accent : theme.text}
+                fill={event.isLiked ? theme.accent : "transparent"}
               />
             </Pressable>
-            <Pressable onPress={() => setIsSaved(!isSaved)}>
+            <Pressable onPress={handleToggleSave}>
               <Feather
                 name="bookmark"
                 size={24}
-                color={isSaved ? theme.success : theme.text}
-                fill={isSaved ? theme.success : "transparent"}
+                color={event.isSaved ? theme.success : theme.text}
+                fill={event.isSaved ? theme.success : "transparent"}
               />
             </Pressable>
             <Pressable>

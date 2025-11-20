@@ -1,13 +1,13 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { StyleSheet, RefreshControl } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { ScreenScrollView } from "@/components/ScreenScrollView";
 import { EventCard } from "@/components/EventCard";
 import { FloatingActionButton } from "@/components/FloatingActionButton";
 import { EmptyState } from "@/components/EmptyState";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
-import { mockEvents } from "@/utils/mockData";
+import { database } from "@/services/database";
 import { Event } from "@/types";
 import { Spacing } from "@/constants/theme";
 
@@ -15,36 +15,63 @@ export default function FeedScreen() {
   const navigation = useNavigation();
   const { user } = useAuth();
   const { theme } = useTheme();
-  const [events, setEvents] = useState<Event[]>(mockEvents);
+  const [events, setEvents] = useState<Event[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 1000);
-  }, []);
+  const loadEvents = useCallback(async () => {
+    if (!user) return;
+    try {
+      const data = await database.getEvents(user.id);
+      setEvents(data);
+    } catch (error) {
+      console.error("Error loading events:", error);
+    }
+  }, [user]);
 
-  const handleLike = (eventId: string) => {
-    setEvents((prev) =>
-      prev.map((event) =>
-        event.id === eventId
-          ? {
-              ...event,
-              isLiked: !event.isLiked,
-              likes: event.isLiked ? event.likes - 1 : event.likes + 1,
-            }
-          : event
-      )
-    );
+  useFocusEffect(
+    useCallback(() => {
+      loadEvents();
+    }, [loadEvents])
+  );
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadEvents();
+    setRefreshing(false);
+  }, [loadEvents]);
+
+  const handleLike = async (eventId: string) => {
+    if (!user) return;
+    try {
+      const isLiked = await database.toggleLike(eventId, user.id);
+      setEvents((prev) =>
+        prev.map((event) =>
+          event.id === eventId
+            ? {
+                ...event,
+                isLiked,
+                likes: isLiked ? event.likes + 1 : event.likes - 1,
+              }
+            : event
+        )
+      );
+    } catch (error) {
+      console.error("Error toggling like:", error);
+    }
   };
 
-  const handleSave = (eventId: string) => {
-    setEvents((prev) =>
-      prev.map((event) =>
-        event.id === eventId ? { ...event, isSaved: !event.isSaved } : event
-      )
-    );
+  const handleSave = async (eventId: string) => {
+    if (!user) return;
+    try {
+      const isSaved = await database.toggleSave(eventId, user.id);
+      setEvents((prev) =>
+        prev.map((event) =>
+          event.id === eventId ? { ...event, isSaved } : event
+        )
+      );
+    } catch (error) {
+      console.error("Error toggling save:", error);
+    }
   };
 
   const handleEventPress = (eventId: string) => {

@@ -1,20 +1,44 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { View, StyleSheet, Pressable } from "react-native";
 import { Feather } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import { ScreenScrollView } from "@/components/ScreenScrollView";
 import { ThemedText } from "@/components/ThemedText";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
-import { mockEvents } from "@/utils/mockData";
+import { database } from "@/services/database";
+import { Event } from "@/types";
 import { Spacing, BorderRadius } from "@/constants/theme";
 
 export default function ProfileScreen() {
   const { user } = useAuth();
   const { theme } = useTheme();
   const [selectedTab, setSelectedTab] = useState<"saved" | "attending">("saved");
+  const [savedEvents, setSavedEvents] = useState<Event[]>([]);
+  const [myEvents, setMyEvents] = useState<Event[]>([]);
 
-  const savedEvents = mockEvents.filter((e) => e.isSaved);
-  const myEvents = user?.accountType === "business" ? mockEvents.slice(0, 2) : savedEvents;
+  const loadSavedEvents = useCallback(async () => {
+    if (!user) return;
+    try {
+      const events = await database.getSavedEvents(user.id);
+      setSavedEvents(events);
+      if (user.accountType === "business") {
+        const allEvents = await database.getEvents(user.id);
+        const businessEvents = allEvents.filter(e => e.businessId === user.id);
+        setMyEvents(businessEvents);
+      }
+    } catch (error) {
+      console.error("Error loading saved events:", error);
+    }
+  }, [user]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadSavedEvents();
+    }, [loadSavedEvents])
+  );
+
+  const displayEvents = user?.accountType === "business" ? myEvents : savedEvents;
 
   return (
     <ScreenScrollView>
@@ -94,7 +118,7 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.gridContainer}>
-          {myEvents.length === 0 ? (
+          {displayEvents.length === 0 ? (
             <View style={styles.emptyGrid}>
               <Feather name="bookmark" size={48} color={theme.textSecondary} />
               <ThemedText style={[styles.emptyText, { color: theme.textSecondary }]}>
@@ -103,7 +127,7 @@ export default function ProfileScreen() {
             </View>
           ) : (
             <View style={styles.grid}>
-              {myEvents.map((event) => (
+              {displayEvents.map((event) => (
                 <View
                   key={event.id}
                   style={[styles.gridItem, { backgroundColor: theme.backgroundSecondary }]}
