@@ -133,7 +133,11 @@ Preferred communication style: Simple, everyday language.
 - **Form Validation**: Ensures all required fields are filled
 
 ### Chat System
-- **Mock Conversations**: Pre-populated with example chats
+- **Mock Conversations**: Pre-populated with 3 example chats dynamically associated with current user
+  - Chat with "Jazz Club SP" about event tickets
+  - Chat with "Foodie SP" about street food festival
+  - Chat with "Run SP" about running event
+- **Dynamic User Association**: Mock chats use current user ID instead of hardcoded values
 - **Chat Preview**: Shows last message and timestamp
 - **Unread Indicators**: Placeholder for future implementation
 

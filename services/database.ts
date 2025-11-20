@@ -472,6 +472,7 @@ class DatabaseService {
       lastMessage: c.lastMessage || "",
       timestamp: c.lastMessageTime || c.createdAt,
       unreadCount: c.unreadCount,
+      isBusinessContact: false,
     }));
   }
 
@@ -648,10 +649,17 @@ class DatabaseService {
     );
 
     if (chatCount && chatCount.count === 0) {
+      // Use the current user ID for mock chats
+      const currentUserId = await this.db.getFirstAsync<{ id: string }>(
+        "SELECT id FROM users WHERE accountType = 'personal' LIMIT 1"
+      );
+      
+      if (!currentUserId) return;
+
       const mockChats = [
         {
           id: "chat-1",
-          userId1: "mock-user",
+          userId1: currentUserId.id,
           userId2: "mock-business-1",
           messages: [
             {
@@ -662,7 +670,7 @@ class DatabaseService {
             },
             {
               id: "msg-2",
-              senderId: "mock-user",
+              senderId: currentUserId.id,
               text: "Oi! Ainda tem ingressos disponíveis?",
               createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
             },
@@ -676,7 +684,7 @@ class DatabaseService {
         },
         {
           id: "chat-2",
-          userId1: "mock-user",
+          userId1: currentUserId.id,
           userId2: "mock-business-2",
           messages: [
             {
@@ -687,7 +695,7 @@ class DatabaseService {
             },
             {
               id: "msg-5",
-              senderId: "mock-user",
+              senderId: currentUserId.id,
               text: "Com certeza! Que horas começa?",
               createdAt: new Date(Date.now() - 23 * 60 * 60 * 1000).toISOString(),
             },
@@ -701,12 +709,12 @@ class DatabaseService {
         },
         {
           id: "chat-3",
-          userId1: "mock-user",
+          userId1: currentUserId.id,
           userId2: "mock-business-3",
           messages: [
             {
               id: "msg-7",
-              senderId: "mock-user",
+              senderId: currentUserId.id,
               text: "Primeira vez participando! Preciso levar algo específico?",
               createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
             },
