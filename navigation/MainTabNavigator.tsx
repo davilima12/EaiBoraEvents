@@ -4,6 +4,7 @@ import { Feather } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import { Platform, StyleSheet } from "react-native";
 import FeedStackNavigator from "@/navigation/FeedStackNavigator";
+import ReelsStackNavigator from "@/navigation/ReelsStackNavigator";
 import ExploreStackNavigator from "@/navigation/ExploreStackNavigator";
 import ChatStackNavigator from "@/navigation/ChatStackNavigator";
 import ProfileStackNavigator from "@/navigation/ProfileStackNavigator";
@@ -11,6 +12,7 @@ import { useTheme } from "@/hooks/useTheme";
 
 export type MainTabParamList = {
   FeedTab: undefined;
+  ReelsTab: undefined;
   ExploreTab: undefined;
   ChatTab: undefined;
   ProfileTab: undefined;
@@ -54,6 +56,15 @@ export default function MainTabNavigator() {
         options={{
           tabBarIcon: ({ color, size }) => (
             <Feather name="home" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="ReelsTab"
+        component={ReelsStackNavigator}
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Feather name="video" size={size} color={color} />
           ),
         }}
       />
