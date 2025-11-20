@@ -1,6 +1,6 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { View, StyleSheet, Pressable, ActivityIndicator } from "react-native";
-import { Video, ResizeMode } from "expo-video";
+import { VideoView, useVideoPlayer } from "expo-video";
 import { Feather } from "@expo/vector-icons";
 import { useTheme } from "@/hooks/useTheme";
 
@@ -12,35 +12,37 @@ interface VideoPlayerProps {
 
 export function VideoPlayer({ uri, thumbnail, style }: VideoPlayerProps) {
   const { theme } = useTheme();
-  const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const videoRef = useRef<any>(null);
+  
+  const player = useVideoPlayer(uri, (player) => {
+    player.loop = true;
+    player.muted = true;
+    player.play();
+  });
 
-  const togglePlayPause = async () => {
-    if (videoRef.current) {
-      if (isPlaying) {
-        await videoRef.current.pauseAsync();
+  useEffect(() => {
+    if (player) {
+      setIsLoading(false);
+    }
+  }, [player]);
+
+  const togglePlayPause = () => {
+    if (player) {
+      if (player.playing) {
+        player.pause();
       } else {
-        await videoRef.current.playAsync();
+        player.play();
       }
-      setIsPlaying(!isPlaying);
     }
   };
 
   return (
     <View style={[styles.container, style]}>
-      <Video
-        ref={videoRef}
-        source={{ uri }}
+      <VideoView
+        player={player}
         style={styles.video}
-        resizeMode={ResizeMode.COVER}
-        shouldPlay={true}
-        isLooping
-        isMuted={true}
-        onLoad={() => {
-          setIsLoading(false);
-          setIsPlaying(true);
-        }}
+        contentFit="cover"
+        nativeControls={false}
       />
       
       {isLoading ? (
@@ -52,7 +54,7 @@ export function VideoPlayer({ uri, thumbnail, style }: VideoPlayerProps) {
       <Pressable style={styles.playButton} onPress={togglePlayPause}>
         <View style={[styles.playButtonInner, { backgroundColor: "rgba(0, 0, 0, 0.6)" }]}>
           <Feather
-            name={isPlaying ? "pause" : "play"}
+            name={player?.playing ? "pause" : "play"}
             size={32}
             color="#FFFFFF"
           />
