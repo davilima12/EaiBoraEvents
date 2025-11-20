@@ -1,194 +1,214 @@
-import { useState } from "react";
-import { StyleSheet, View, TextInput } from "react-native";
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-
-import { ScreenKeyboardAwareScrollView } from "@/components/ScreenKeyboardAwareScrollView";
+import React, { useState } from "react";
+import { View, StyleSheet, Pressable } from "react-native";
+import { Feather } from "@expo/vector-icons";
+import { ScreenScrollView } from "@/components/ScreenScrollView";
 import { ThemedText } from "@/components/ThemedText";
-import { Button } from "@/components/Button";
+import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
-import { Spacing, BorderRadius, Typography } from "@/constants/theme";
-import Spacer from "@/components/Spacer";
-import type { ProfileStackParamList } from "@/navigation/ProfileStackNavigator";
+import { mockEvents } from "@/utils/mockData";
+import { Spacing, BorderRadius } from "@/constants/theme";
 
-type ProfileScreenProps = {
-  navigation: NativeStackNavigationProp<ProfileStackParamList, "Profile">;
-};
+export default function ProfileScreen() {
+  const { user } = useAuth();
+  const { theme } = useTheme();
+  const [selectedTab, setSelectedTab] = useState<"saved" | "attending">("saved");
 
-export default function ProfileScreen({ navigation }: ProfileScreenProps) {
-  const { theme, isDark } = useTheme();
-
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-
-  const handleSubmit = () => {
-    console.log("Form submitted:", { name, email, password });
-  };
-
-  const inputStyle = [
-    styles.input,
-    {
-      backgroundColor: theme.backgroundDefault,
-      color: theme.text,
-    },
-  ];
+  const savedEvents = mockEvents.filter((e) => e.isSaved);
+  const myEvents = user?.accountType === "business" ? mockEvents.slice(0, 2) : savedEvents;
 
   return (
-    <ScreenKeyboardAwareScrollView>
-      <View style={styles.section}>
-        <ThemedText type="h1">Heading 1</ThemedText>
-        <ThemedText type="small" style={styles.meta}>
-          32px • Bold
-        </ThemedText>
+    <ScreenScrollView>
+      <View style={styles.container}>
+        <View style={styles.profileSection}>
+          <View style={[styles.avatar, { backgroundColor: theme.primary }]}>
+            <ThemedText style={styles.avatarText}>
+              {user?.name?.[0] || "U"}
+            </ThemedText>
+          </View>
+          <ThemedText style={styles.name}>{user?.name || "Usuário"}</ThemedText>
+          <ThemedText style={[styles.email, { color: theme.textSecondary }]}>
+            {user?.email || "email@example.com"}
+          </ThemedText>
+          {user?.bio ? (
+            <ThemedText style={[styles.bio, { color: theme.textSecondary }]}>
+              {user.bio}
+            </ThemedText>
+          ) : null}
+          {user?.accountType === "business" ? (
+            <View style={[styles.badge, { backgroundColor: theme.secondary + "20" }]}>
+              <Feather name="briefcase" size={12} color={theme.secondary} />
+              <ThemedText style={[styles.badgeText, { color: theme.secondary }]}>
+                Conta Empresarial
+              </ThemedText>
+            </View>
+          ) : null}
+        </View>
+
+        <View style={styles.tabs}>
+          <Pressable
+            style={[
+              styles.tab,
+              selectedTab === "saved" && {
+                borderBottomColor: theme.primary,
+                borderBottomWidth: 2,
+              },
+            ]}
+            onPress={() => setSelectedTab("saved")}
+          >
+            <ThemedText
+              style={[
+                styles.tabText,
+                {
+                  color: selectedTab === "saved" ? theme.primary : theme.textSecondary,
+                  fontWeight: selectedTab === "saved" ? "600" : "400",
+                },
+              ]}
+            >
+              {user?.accountType === "business" ? "Meus Eventos" : "Salvos"}
+            </ThemedText>
+          </Pressable>
+          {user?.accountType !== "business" ? (
+            <Pressable
+              style={[
+                styles.tab,
+                selectedTab === "attending" && {
+                  borderBottomColor: theme.primary,
+                  borderBottomWidth: 2,
+                },
+              ]}
+              onPress={() => setSelectedTab("attending")}
+            >
+              <ThemedText
+                style={[
+                  styles.tabText,
+                  {
+                    color: selectedTab === "attending" ? theme.primary : theme.textSecondary,
+                    fontWeight: selectedTab === "attending" ? "600" : "400",
+                  },
+                ]}
+              >
+                Participando
+              </ThemedText>
+            </Pressable>
+          ) : null}
+        </View>
+
+        <View style={styles.gridContainer}>
+          {myEvents.length === 0 ? (
+            <View style={styles.emptyGrid}>
+              <Feather name="bookmark" size={48} color={theme.textSecondary} />
+              <ThemedText style={[styles.emptyText, { color: theme.textSecondary }]}>
+                Nenhum evento salvo ainda
+              </ThemedText>
+            </View>
+          ) : (
+            <View style={styles.grid}>
+              {myEvents.map((event) => (
+                <View
+                  key={event.id}
+                  style={[styles.gridItem, { backgroundColor: theme.backgroundSecondary }]}
+                >
+                  <ThemedText style={styles.gridItemText} numberOfLines={2}>
+                    {event.title}
+                  </ThemedText>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
       </View>
-
-      <View style={styles.section}>
-        <ThemedText type="h2">Heading 2</ThemedText>
-        <ThemedText type="small" style={styles.meta}>
-          28px • Bold
-        </ThemedText>
-      </View>
-
-      <View style={styles.section}>
-        <ThemedText type="h3">Heading 3</ThemedText>
-        <ThemedText type="small" style={styles.meta}>
-          24px • Semi-Bold
-        </ThemedText>
-      </View>
-
-      <View style={styles.section}>
-        <ThemedText type="h4">Heading 4</ThemedText>
-        <ThemedText type="small" style={styles.meta}>
-          20px • Semi-Bold
-        </ThemedText>
-      </View>
-
-      <View style={styles.section}>
-        <ThemedText type="body">
-          Body text - This is the default text style for paragraphs and general
-          content.
-        </ThemedText>
-        <ThemedText type="small" style={styles.meta}>
-          16px • Regular
-        </ThemedText>
-      </View>
-
-      <View style={styles.section}>
-        <ThemedText type="small">
-          Small text - Used for captions, labels, and secondary information.
-        </ThemedText>
-        <ThemedText type="small" style={styles.meta}>
-          14px • Regular
-        </ThemedText>
-      </View>
-
-      <View style={styles.section}>
-        <ThemedText type="link">Link text - Interactive elements</ThemedText>
-        <ThemedText type="small" style={styles.meta}>
-          16px • Regular • Colored
-        </ThemedText>
-      </View>
-
-      <Spacer height={Spacing["4xl"]} />
-
-      <View style={styles.fieldContainer}>
-        <ThemedText type="small" style={styles.label}>
-          Name
-        </ThemedText>
-        <TextInput
-          style={inputStyle}
-          value={name}
-          onChangeText={setName}
-          placeholder="Enter your name"
-          placeholderTextColor={isDark ? "#9BA1A6" : "#687076"}
-          autoCapitalize="words"
-          returnKeyType="next"
-        />
-      </View>
-
-      <Spacer height={Spacing.lg} />
-
-      <View style={styles.fieldContainer}>
-        <ThemedText type="small" style={styles.label}>
-          Email
-        </ThemedText>
-        <TextInput
-          style={inputStyle}
-          value={email}
-          onChangeText={setEmail}
-          placeholder="your.email@example.com"
-          placeholderTextColor={isDark ? "#9BA1A6" : "#687076"}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          returnKeyType="next"
-        />
-      </View>
-
-      <Spacer height={Spacing.lg} />
-
-      <View style={styles.fieldContainer}>
-        <ThemedText type="small" style={styles.label}>
-          Password
-        </ThemedText>
-        <TextInput
-          style={inputStyle}
-          value={password}
-          onChangeText={setPassword}
-          placeholder="Enter a password"
-          placeholderTextColor={isDark ? "#9BA1A6" : "#687076"}
-          secureTextEntry
-          autoCapitalize="none"
-          returnKeyType="next"
-        />
-      </View>
-
-      <Spacer height={Spacing.lg} />
-
-      <Button onPress={handleSubmit}>Submit Form</Button>
-
-      <Spacer height={Spacing["2xl"]} />
-
-      <ThemedText type="h3" style={styles.sectionTitle}>
-        Testing
-      </ThemedText>
-      <Spacer height={Spacing.md} />
-      <Button
-        onPress={() => navigation.navigate("Crash")}
-        style={styles.crashButton}
-      >
-        Crash App
-      </Button>
-    </ScreenKeyboardAwareScrollView>
+    </ScreenScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  section: {
-    marginBottom: Spacing["3xl"],
+  container: {
+    padding: Spacing.xl,
   },
-  meta: {
-    opacity: 0.5,
-    marginTop: Spacing.sm,
+  profileSection: {
+    alignItems: "center",
+    marginBottom: Spacing["2xl"],
   },
-  fieldContainer: {
-    width: "100%",
+  avatar: {
+    width: 80,
+    height: 80,
+    borderRadius: BorderRadius.full,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: Spacing.md,
   },
-  label: {
+  avatarText: {
+    fontSize: 32,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  name: {
+    fontSize: 24,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+  email: {
+    fontSize: 14,
     marginBottom: Spacing.sm,
+  },
+  bio: {
+    fontSize: 14,
+    textAlign: "center",
+    marginBottom: Spacing.sm,
+  },
+  badge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.full,
+    gap: 6,
+  },
+  badgeText: {
+    fontSize: 12,
     fontWeight: "600",
-    opacity: 0.8,
   },
-  input: {
-    height: Spacing.inputHeight,
-    borderWidth: 0,
-    borderRadius: BorderRadius.md,
-    paddingHorizontal: Spacing.lg,
-    fontSize: Typography.body.fontSize,
+  tabs: {
+    flexDirection: "row",
+    marginBottom: Spacing.xl,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(0, 0, 0, 0.1)",
   },
-  sectionTitle: {
-    marginTop: Spacing.xl,
+  tab: {
+    flex: 1,
+    paddingVertical: Spacing.md,
+    alignItems: "center",
   },
-  crashButton: {
-    backgroundColor: "#FF3B30",
+  tabText: {
+    fontSize: 14,
+  },
+  gridContainer: {
+    minHeight: 200,
+  },
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.md,
+  },
+  gridItem: {
+    width: "31%",
+    aspectRatio: 1,
+    borderRadius: BorderRadius.xs,
+    padding: Spacing.sm,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  gridItemText: {
+    fontSize: 12,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  emptyGrid: {
+    alignItems: "center",
+    paddingVertical: Spacing["3xl"],
+  },
+  emptyText: {
+    fontSize: 14,
+    marginTop: Spacing.md,
   },
 });

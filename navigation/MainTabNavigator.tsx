@@ -3,12 +3,16 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Feather } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import { Platform, StyleSheet } from "react-native";
-import HomeStackNavigator from "@/navigation/HomeStackNavigator";
+import FeedStackNavigator from "@/navigation/FeedStackNavigator";
+import ExploreStackNavigator from "@/navigation/ExploreStackNavigator";
+import ChatStackNavigator from "@/navigation/ChatStackNavigator";
 import ProfileStackNavigator from "@/navigation/ProfileStackNavigator";
 import { useTheme } from "@/hooks/useTheme";
 
 export type MainTabParamList = {
-  HomeTab: undefined;
+  FeedTab: undefined;
+  ExploreTab: undefined;
+  ChatTab: undefined;
   ProfileTab: undefined;
 };
 
@@ -19,7 +23,7 @@ export default function MainTabNavigator() {
 
   return (
     <Tab.Navigator
-      initialRouteName="HomeTab"
+      initialRouteName="FeedTab"
       screenOptions={{
         tabBarActiveTintColor: theme.tabIconSelected,
         tabBarInactiveTintColor: theme.tabIconDefault,
@@ -41,15 +45,33 @@ export default function MainTabNavigator() {
             />
           ) : null,
         headerShown: false,
+        tabBarShowLabel: false,
       }}
     >
       <Tab.Screen
-        name="HomeTab"
-        component={HomeStackNavigator}
+        name="FeedTab"
+        component={FeedStackNavigator}
         options={{
-          title: "Home",
           tabBarIcon: ({ color, size }) => (
             <Feather name="home" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="ExploreTab"
+        component={ExploreStackNavigator}
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Feather name="search" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="ChatTab"
+        component={ChatStackNavigator}
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Feather name="message-square" size={size} color={color} />
           ),
         }}
       />
@@ -57,7 +79,6 @@ export default function MainTabNavigator() {
         name="ProfileTab"
         component={ProfileStackNavigator}
         options={{
-          title: "Profile",
           tabBarIcon: ({ color, size }) => (
             <Feather name="user" size={size} color={color} />
           ),

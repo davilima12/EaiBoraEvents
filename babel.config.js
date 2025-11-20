@@ -6,14 +6,11 @@ module.exports = function (api) {
       [
         "module-resolver",
         {
-          root: ["./"],
           alias: {
-            "@": "./",
+            "@": ".",
           },
-          extensions: [".ios.js", ".android.js", ".js", ".ts", ".tsx", ".json"],
         },
       ],
-      "react-native-reanimated/plugin",
     ],
   };
 };
