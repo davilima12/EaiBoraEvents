@@ -15,9 +15,10 @@ interface ReelCardProps {
   onLike: () => void;
   onComment: () => void;
   onSave: () => void;
+  onBusinessPress?: () => void;
 }
 
-export function ReelCard({ event, isActive, onLike, onComment, onSave }: ReelCardProps) {
+export function ReelCard({ event, isActive, onLike, onComment, onSave, onBusinessPress }: ReelCardProps) {
   const { theme } = useTheme();
   const [isLoading, setIsLoading] = useState(true);
   
@@ -122,7 +123,13 @@ export function ReelCard({ event, isActive, onLike, onComment, onSave }: ReelCar
         </View>
 
         <View style={styles.bottomInfo}>
-          <View style={styles.businessInfo}>
+          <Pressable
+            style={styles.businessInfo}
+            onPress={(e) => {
+              e.stopPropagation();
+              onBusinessPress?.();
+            }}
+          >
             <View style={[styles.avatar, { backgroundColor: theme.primary }]}>
               <ThemedText style={styles.avatarText}>
                 {event.businessName[0]}
@@ -131,7 +138,7 @@ export function ReelCard({ event, isActive, onLike, onComment, onSave }: ReelCar
             <ThemedText style={styles.businessName}>
               {event.businessName}
             </ThemedText>
-          </View>
+          </Pressable>
 
           <ThemedText style={styles.title} numberOfLines={2}>
             {event.title}

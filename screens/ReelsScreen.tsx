@@ -71,6 +71,10 @@ export default function ReelsScreen() {
     (navigation as any).navigate("Comments", { eventId });
   };
 
+  const handleBusinessPress = (businessId: string, businessName: string) => {
+    (navigation as any).navigate("BusinessProfile", { businessId, businessName });
+  };
+
   const onViewableItemsChanged = useRef(
     ({ viewableItems }: { viewableItems: ViewToken[] }) => {
       if (viewableItems.length > 0 && viewableItems[0].index !== null) {
@@ -91,6 +95,7 @@ export default function ReelsScreen() {
         onLike={() => handleLike(item.id)}
         onComment={() => handleComment(item.id)}
         onSave={() => handleSave(item.id)}
+        onBusinessPress={() => handleBusinessPress(item.businessId, item.businessName)}
       />
     ),
     [activeIndex]

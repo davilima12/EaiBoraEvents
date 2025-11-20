@@ -257,6 +257,52 @@ class DatabaseService {
     });
   }
 
+  async getEventsByBusinessId(businessId: string, userId: string): Promise<Event[]> {
+    if (!this.db) throw new Error("Database not initialized");
+    
+    const events = await this.db.getAllAsync<any>(
+      `SELECT e.*, 
+        (SELECT COUNT(*) FROM event_likes WHERE eventId = e.id) as likes,
+        EXISTS(SELECT 1 FROM event_likes WHERE eventId = e.id AND userId = ?) as isLiked,
+        EXISTS(SELECT 1 FROM event_saves WHERE eventId = e.id AND userId = ?) as isSaved
+       FROM events e
+       WHERE e.businessId = ?
+       ORDER BY e.createdAt DESC`,
+      [userId, userId, businessId]
+    );
+
+    return events.map((e) => {
+      const images = JSON.parse(e.images);
+      const media = e.media ? JSON.parse(e.media) : images.map((uri: string) => ({
+        type: "image" as const,
+        uri,
+      }));
+      
+      return {
+        id: e.id,
+        title: e.title,
+        description: e.description,
+        businessId: e.businessId,
+        businessName: e.businessName,
+        businessAvatar: e.businessAvatar,
+        images,
+        media,
+        date: e.date,
+        location: {
+          address: e.address,
+          latitude: e.latitude,
+          longitude: e.longitude,
+        },
+        category: e.category,
+        likes: e.likes,
+        isLiked: Boolean(e.isLiked),
+        isSaved: Boolean(e.isSaved),
+        comments: [],
+        distance: 0,
+      };
+    });
+  }
+
   async getEventById(eventId: string, userId: string): Promise<Event | null> {
     if (!this.db) throw new Error("Database not initialized");
     

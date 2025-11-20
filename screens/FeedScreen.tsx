@@ -95,6 +95,10 @@ export default function FeedScreen() {
     (navigation as any).navigate("Comments", { eventId });
   };
 
+  const handleBusinessPress = (businessId: string, businessName: string) => {
+    (navigation as any).navigate("BusinessProfile", { businessId, businessName });
+  };
+
   const handleCreateEvent = () => {
     (navigation as any).navigate("CreateEvent");
   };
@@ -141,6 +145,7 @@ export default function FeedScreen() {
             onLike={() => handleLike(event.id)}
             onComment={() => handleComment(event.id)}
             onSave={() => handleSave(event.id)}
+            onBusinessPress={() => handleBusinessPress(event.businessId, event.businessName)}
           />
         ))}
       </ScreenScrollView>

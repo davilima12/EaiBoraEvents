@@ -16,9 +16,10 @@ interface EventCardProps {
   onLike: () => void;
   onSave: () => void;
   onComment: () => void;
+  onBusinessPress?: () => void;
 }
 
-export function EventCard({ event, onPress, onLike, onSave, onComment }: EventCardProps) {
+export function EventCard({ event, onPress, onLike, onSave, onComment, onBusinessPress }: EventCardProps) {
   const { theme } = useTheme();
 
   const formatDate = (dateString: string) => {
@@ -55,7 +56,13 @@ export function EventCard({ event, onPress, onLike, onSave, onComment }: EventCa
       
       <View style={styles.content}>
         <View style={styles.header}>
-          <View style={styles.businessInfo}>
+          <Pressable
+            style={styles.businessInfo}
+            onPress={(e) => {
+              e.stopPropagation();
+              onBusinessPress?.();
+            }}
+          >
             <View style={[styles.avatar, { backgroundColor: theme.primary }]}>
               <ThemedText style={styles.avatarText}>
                 {event.businessName[0]}
@@ -72,7 +79,7 @@ export function EventCard({ event, onPress, onLike, onSave, onComment }: EventCa
                 </ThemedText>
               </View>
             </View>
-          </View>
+          </Pressable>
         </View>
 
         <ThemedText style={styles.title}>{event.title}</ThemedText>
