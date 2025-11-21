@@ -24,7 +24,7 @@ export default function SettingsScreen() {
           style: "destructive",
           onPress: async () => {
             await signOut();
-            (navigation as any).navigate("Auth");
+            // Navigation will happen automatically based on isAuthenticated
           },
         },
       ]
@@ -51,7 +51,7 @@ export default function SettingsScreen() {
                   style: "destructive",
                   onPress: async () => {
                     await signOut();
-                    (navigation as any).navigate("Auth");
+                    // Navigation will happen automatically based on isAuthenticated
                   },
                 },
               ]
@@ -101,24 +101,24 @@ export default function SettingsScreen() {
           <ThemedText style={[styles.sectionTitle, { color: theme.textSecondary }]}>
             CONTA
           </ThemedText>
-          <SettingsItem icon="user" title="Editar Perfil" onPress={() => {}} />
+          <SettingsItem icon="user" title="Editar Perfil" onPress={() => { }} />
           <SettingsItem
             icon="bell"
             title="Notificações"
-            onPress={() => {}}
+            onPress={() => { }}
           />
-          <SettingsItem icon="lock" title="Privacidade" onPress={() => {}} />
+          <SettingsItem icon="lock" title="Privacidade" onPress={() => { }} />
         </View>
 
         <View style={styles.section}>
           <ThemedText style={[styles.sectionTitle, { color: theme.textSecondary }]}>
             PREFERÊNCIAS
           </ThemedText>
-          <SettingsItem icon="map-pin" title="Localização" onPress={() => {}} />
+          <SettingsItem icon="map-pin" title="Localização" onPress={() => { }} />
           <SettingsItem
             icon="sliders"
             title="Filtros Padrão"
-            onPress={() => {}}
+            onPress={() => { }}
           />
         </View>
 
@@ -126,9 +126,9 @@ export default function SettingsScreen() {
           <ThemedText style={[styles.sectionTitle, { color: theme.textSecondary }]}>
             SUPORTE
           </ThemedText>
-          <SettingsItem icon="help-circle" title="Central de Ajuda" onPress={() => {}} />
-          <SettingsItem icon="message-circle" title="Contato" onPress={() => {}} />
-          <SettingsItem icon="info" title="Sobre" onPress={() => {}} />
+          <SettingsItem icon="help-circle" title="Central de Ajuda" onPress={() => { }} />
+          <SettingsItem icon="message-circle" title="Contato" onPress={() => { }} />
+          <SettingsItem icon="info" title="Sobre" onPress={() => { }} />
         </View>
 
         <View style={styles.section}>

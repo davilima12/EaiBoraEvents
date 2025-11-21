@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { User, AccountType } from "@/types";
 import { database } from "@/services/database";
-import { api, clearAuthToken } from "@/services/api";
+import { api } from "@/services/api";
 
 interface AuthContextType {
   user: User | null;
@@ -50,16 +50,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Fetch user profile from API
       const userProfile = await api.getUserProfile();
+      console.log('userProfile', userProfile)
+
+      // Map user_type_id to accountType (1 = personal, 2 = business)
+      const mappedAccountType: AccountType = userProfile.user_type_id === 2 ? "business" : "personal";
 
       // Create or update user with profile data
       const newUser: User = {
         id: userProfile.id.toString(),
         name: userProfile.name,
         email: userProfile.email,
-        accountType,
+        accountType: mappedAccountType,
         avatar: undefined,
         bio: "",
-        category: accountType === "business" ? undefined : undefined,
+        category: mappedAccountType === "business" ? undefined : undefined,
       };
 
       // Check if user exists locally
@@ -106,8 +110,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
+    try {
+      // Call logout API endpoint
+      await api.logout();
+    } catch (error) {
+      console.error("Logout API error:", error);
+      // Continue with local cleanup even if API fails
+    }
+
+    // Clear user from AsyncStorage
     await AsyncStorage.removeItem(AUTH_STORAGE_KEY);
-    await clearAuthToken();
+
+    // Clear user state
     setUser(null);
   };
 

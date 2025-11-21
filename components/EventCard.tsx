@@ -1,5 +1,5 @@
 import React from "react";
-import { View, StyleSheet, Pressable, Image, Dimensions } from "react-native";
+import { View, StyleSheet, Pressable, Image, Dimensions, FlatList } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { ThemedText } from "@/components/ThemedText";
 import { VideoPlayer } from "@/components/VideoPlayer";
@@ -18,9 +18,10 @@ interface EventCardProps {
   onComment: () => void;
   onBusinessPress?: () => void;
   onVideoPress?: () => void;
+  isVisible?: boolean;
 }
 
-export function EventCard({ event, onPress, onLike, onSave, onComment, onBusinessPress, onVideoPress }: EventCardProps) {
+export function EventCard({ event, onPress, onLike, onSave, onComment, onBusinessPress, onVideoPress, isVisible = true }: EventCardProps) {
   const { theme } = useTheme();
 
   const formatDate = (dateString: string) => {
@@ -33,25 +34,68 @@ export function EventCard({ event, onPress, onLike, onSave, onComment, onBusines
     });
   };
 
-  const firstMedia = event.media?.[0] || { type: "image", uri: event.images[0] };
+  const [activeIndex, setActiveIndex] = React.useState(0);
+
+  const mediaItems = event.media && event.media.length > 0
+    ? event.media
+    : event.images.map(uri => ({ type: "image", uri } as const));
+
+  const handleScroll = (event: any) => {
+    const slideSize = event.nativeEvent.layoutMeasurement.width;
+    const index = event.nativeEvent.contentOffset.x / slideSize;
+    const roundIndex = Math.round(index);
+    setActiveIndex(roundIndex);
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.backgroundDefault }]}>
-      {firstMedia.type === "video" ? (
-        <Pressable onPress={onVideoPress} style={styles.image}>
-          <VideoPlayer
-            uri={firstMedia.uri}
-            thumbnail={firstMedia.thumbnail}
-            style={{ width: "100%", height: "100%" }}
-          />
-        </Pressable>
-      ) : (
-        <Image
-          source={{ uri: firstMedia.uri }}
-          style={styles.image}
-          resizeMode="cover"
+      <View style={styles.mediaContainer}>
+        <FlatList
+          data={mediaItems}
+          keyExtractor={(item, index) => `${item.uri}-${index}`}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+          renderItem={({ item, index }) => (
+            <View style={{ width: CARD_WIDTH, height: 500 }}>
+              {item.type === "video" ? (
+                <Pressable onPress={onVideoPress} style={styles.mediaItem}>
+                  <VideoPlayer
+                    uri={item.uri}
+                    thumbnail={item.thumbnail}
+                    style={{ width: "100%", height: "100%" }}
+                    shouldPlay={isVisible && index === activeIndex}
+                  />
+                </Pressable>
+              ) : (
+                <Image
+                  source={{ uri: item.uri }}
+                  style={styles.mediaItem}
+                  resizeMode="cover"
+                />
+              )}
+            </View>
+          )}
         />
-      )}
+        {mediaItems.length > 1 && (
+          <View style={styles.pagination}>
+            {mediaItems.map((_, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.paginationDot,
+                  {
+                    backgroundColor: index === activeIndex ? theme.primary : "rgba(255, 255, 255, 0.5)",
+                    width: index === activeIndex ? 20 : 8,
+                  },
+                ]}
+              />
+            ))}
+          </View>
+        )}
+      </View>
       <View style={styles.content}>
         <View style={styles.header}>
           <Pressable
@@ -159,9 +203,28 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     alignSelf: "center",
   },
-  image: {
-    width: "100%",
-    height: 500, // aumenta altura da imagem
+  mediaContainer: {
+    position: "relative",
+    width: CARD_WIDTH,
+    height: 500,
+  },
+  mediaItem: {
+    width: CARD_WIDTH,
+    height: 500,
+  },
+  pagination: {
+    position: "absolute",
+    bottom: Spacing.md,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 6,
+  },
+  paginationDot: {
+    height: 8,
+    borderRadius: 4,
   },
   content: {
     padding: Spacing.lg,

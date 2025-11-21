@@ -8,7 +8,8 @@ import { Button } from "@/components/Button";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/hooks/useAuth";
 import { database } from "@/services/database";
-import { Event } from "@/types";
+import { api } from "@/services/api";
+import { Event, ApiPost, EventCategory } from "@/types";
 import { Spacing, BorderRadius } from "@/constants/theme";
 
 const { width } = Dimensions.get("window");
@@ -26,8 +27,64 @@ export default function EventDetailScreen() {
     async function loadEvent() {
       if (!user || !eventId) return;
       try {
-        const data = await database.getEventById(eventId, user.id);
-        setEvent(data);
+        const post = await api.getPostById(Number(eventId));
+
+        // Adapt API post to Event type
+        // Map photos/videos
+        const media = post.photos.map(p => ({
+          type: p.type,
+          uri: p.path_photo
+        }));
+
+        // Extract image URIs
+        const images = post.photos
+          .filter(p => p.type === 'image')
+          .map(p => p.path_photo);
+
+        // Map category
+        const categoryMap: Record<string, EventCategory> = {
+          "Música": "music",
+          "Gastronomia": "food",
+          "Esportes": "sports",
+          "Balada": "nightlife",
+          "Arte": "art",
+          "Networking": "networking",
+          "Ar Livre": "outdoors",
+          "Outros": "other"
+        };
+        const category = categoryMap[post.type_post.name] || "other";
+
+        const adaptedEvent: Event = {
+          id: post.id.toString(),
+          title: post.name,
+          description: post.description || "",
+          businessId: post.user.id.toString(),
+          businessName: post.user.name,
+          businessAvatar: post.user.user_profile_picture || undefined,
+          images: images.length > 0 ? images : (media.length > 0 ? [media[0].uri] : []),
+          media: media,
+          date: post.start_event,
+          location: {
+            address: `${post.address}, ${post.number} - ${post.neighborhood}`,
+            latitude: post.latitude || 0,
+            longitude: post.longitude || 0,
+          },
+          category: category,
+          likes: post.like_post.length,
+          isLiked: post.like_post.some((like: any) => like.user_id === Number(user.id)),
+          isSaved: false,
+          distance: post.distance || 0,
+          comments: post.comments_chained.map((c: any) => ({
+            id: c.id.toString(),
+            userId: c.user_id.toString(),
+            userName: c.user.name,
+            userAvatar: c.user.user_profile_picture,
+            text: c.comment,
+            timestamp: c.created_at
+          })),
+        };
+
+        setEvent(adaptedEvent);
       } catch (error) {
         console.error("Error loading event:", error);
       } finally {
@@ -38,18 +95,30 @@ export default function EventDetailScreen() {
   }, [eventId, user]);
 
   const handleToggleLike = async () => {
-    if (!user || !eventId) return;
+    if (!user || !eventId || !event) return;
+
+    // Optimistic update
+    const newIsLiked = !event.isLiked;
+    setEvent({
+      ...event,
+      isLiked: newIsLiked,
+      likes: newIsLiked ? event.likes + 1 : event.likes - 1,
+    });
+
     try {
-      const isLiked = await database.toggleLike(eventId, user.id);
-      if (event) {
-        setEvent({
-          ...event,
-          isLiked,
-          likes: isLiked ? event.likes + 1 : event.likes - 1,
-        });
+      if (event.isLiked) {
+        await api.unlikePost(Number(eventId));
+      } else {
+        await api.likePost(Number(eventId));
       }
     } catch (error) {
       console.error("Error toggling like:", error);
+      // Revert optimistic update
+      setEvent({
+        ...event,
+        isLiked: !newIsLiked,
+        likes: !newIsLiked ? event.likes + 1 : event.likes - 1,
+      });
     }
   };
 
@@ -186,7 +255,7 @@ export default function EventDetailScreen() {
           </View>
         </View>
 
-        <Button onPress={() => {}}>Tenho Interesse</Button>
+        <Button onPress={() => { }}>Tenho Interesse</Button>
       </View>
     </ScreenKeyboardAwareScrollView>
   );

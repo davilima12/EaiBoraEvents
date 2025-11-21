@@ -7,7 +7,7 @@ import { Spacing, BorderRadius } from "@/constants/theme";
 import { EventCategory } from "@/types";
 
 interface CategoryChipProps {
-  category: { id: EventCategory; label: string; icon: string };
+  category: { id: EventCategory | number | string; label: string; icon: string };
   isSelected: boolean;
   onPress: () => void;
 }

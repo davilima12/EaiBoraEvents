@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { AccountType } from "@/types";
+import { AccountType, PostType, CreateEventPayload, CreateEventResponse, ApiPost } from "@/types";
 
 const API_URL = "http://192.168.15.3:8000/api";
 const TOKEN_KEY = "@eaibora:auth_token";
@@ -186,5 +186,179 @@ export const api = {
         }
 
         return data;
+    },
+
+    async logout(): Promise<void> {
+        const token = await getAuthToken();
+
+        if (token) {
+            try {
+                await fetch(`${API_URL}/auth/logout`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`,
+                    },
+                });
+            } catch (error) {
+                console.warn('Error calling logout API:', error);
+                // Continue with local cleanup even if API call fails
+            }
+        }
+
+        // Clear the token from AsyncStorage
+        await clearAuthToken();
+    },
+
+    async getPostTypes(): Promise<PostType[]> {
+        const response = await fetch(`${API_URL}/post/post-type`, {
+            method: "GET",
+            headers: {
+                Accept: "application/json",
+            },
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || "Erro ao buscar categorias");
+        }
+
+        return data;
+    },
+
+    async createEvent(payload: CreateEventPayload, photoUris: string[]): Promise<CreateEventResponse> {
+        const token = await getAuthToken();
+
+        if (!token) {
+            throw new Error("Token não encontrado");
+        }
+
+        const formData = new FormData();
+
+        // Add photos to FormData
+        for (let i = 0; i < photoUris.length; i++) {
+            const uri = photoUris[i];
+            const filename = uri.split('/').pop() || `media_${i}`;
+            const match = /\.(\w+)$/.exec(filename);
+            let type = match ? `image/${match[1]}` : 'image/jpeg';
+
+            // Adjust mime type for videos
+            if (filename.endsWith('.mp4')) {
+                type = 'video/mp4';
+            } else if (filename.endsWith('.mov')) {
+                type = 'video/quicktime';
+            }
+
+            formData.append('photos[]', {
+                uri,
+                name: filename,
+                type,
+            } as any);
+        }
+
+        // Add other fields
+        formData.append('type_post_id', payload.type_post_id.toString());
+        formData.append('address', payload.address);
+        formData.append('zip_code', payload.zip_code);
+        formData.append('neighborhood', payload.neighborhood);
+        formData.append('number', payload.number);
+        formData.append('citie_id', payload.citie_id.toString());
+        formData.append('state_id', payload.state_id.toString());
+        formData.append('start_event', payload.start_event);
+        formData.append('end_event', payload.end_event);
+        formData.append('name', payload.name);
+        if (payload.description) {
+            formData.append('description', payload.description);
+        }
+
+        const response = await fetch(`${API_URL}/post/create`, {
+            method: "POST",
+            headers: {
+                Accept: "application/json",
+                Authorization: `Bearer ${token}`,
+            },
+            body: formData,
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || "Erro ao criar evento");
+        }
+
+        return data;
+    },
+
+    async getPosts(): Promise<ApiPost[]> {
+        const token = await getAuthToken();
+        const response = await fetch(`${API_URL}/post`, {
+            method: "GET",
+            headers: {
+                Accept: "application/json",
+                Authorization: `Bearer ${token}`,
+            },
+        });
+
+        const data = await response.json();
+        console.log(data)
+        if (!response.ok) {
+            throw new Error(data.message || "Erro ao buscar posts");
+        }
+
+        return data;
+    },
+
+    async getPostById(id: number): Promise<ApiPost> {
+        const token = await getAuthToken();
+        const response = await fetch(`${API_URL}/post/${id}`, {
+            method: "GET",
+            headers: {
+                Accept: "application/json",
+                Authorization: `Bearer ${token}`,
+            },
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || "Erro ao buscar detalhes do post");
+        }
+
+        return data;
+    },
+
+    async likePost(postId: number): Promise<void> {
+        const token = await getAuthToken();
+        const response = await fetch(`${API_URL}/post/liked/${postId}`, {
+            method: "POST",
+            headers: {
+                Accept: "application/json",
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ type_like_id: 1 }),
+        });
+
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.message || "Erro ao curtir post");
+        }
+    },
+
+    async unlikePost(postId: number): Promise<void> {
+        const token = await getAuthToken();
+        const response = await fetch(`${API_URL}/post/removed-liked/${postId}`, {
+            method: "POST",
+            headers: {
+                Accept: "application/json",
+                Authorization: `Bearer ${token}`,
+            },
+        });
+
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.message || "Erro ao remover curtida");
+        }
     },
 };

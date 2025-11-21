@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { View, StyleSheet, Pressable, Dimensions } from "react-native";
+import React, { useState, useEffect, useRef } from "react";
+import { View, StyleSheet, Pressable, Dimensions, PanResponder } from "react-native";
 import { VideoView, useVideoPlayer } from "expo-video";
 import { Feather } from "@expo/vector-icons";
 import { ThemedText } from "@/components/ThemedText";
@@ -23,6 +23,12 @@ export function ReelCard({ event, isActive, onLike, onComment, onSave, onBusines
   const { theme } = useTheme();
   const [isLoading, setIsLoading] = useState(true);
   const [isScreenFocused, setIsScreenFocused] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
+  const [showControls, setShowControls] = useState(false);
+  const [progress, setProgress] = useState(0);
+
+  const progressBarRef = useRef<View>(null);
+  const hideControlsTimeout = useRef<NodeJS.Timeout | null>(null);
 
   const videoMedia = event.media?.find((m) => m.type === "video");
   if (!videoMedia) return null;
@@ -77,10 +83,42 @@ export function ReelCard({ event, isActive, onLike, onComment, onSave, onBusines
     }
   }, [isActive, player, isScreenFocused]);
 
+  useEffect(() => {
+    if (!player) return;
+
+    const interval = setInterval(() => {
+      if (player.currentTime && player.duration) {
+        const progressPercent = (player.currentTime / player.duration) * 100;
+        setProgress(progressPercent);
+      }
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, [player]);
+
+  const handleScreenPress = () => {
+    setShowControls(!showControls);
+
+    // Auto-hide controls after 3 seconds
+    if (hideControlsTimeout.current) {
+      clearTimeout(hideControlsTimeout.current);
+    }
+
+    if (!showControls) {
+      hideControlsTimeout.current = setTimeout(() => {
+        setShowControls(false);
+      }, 3000);
+    }
+  };
+
   const togglePlayPause = () => {
     if (player) {
       if (player.playing) {
-        player.pause();
+        try {
+          player.pause();
+        } catch (e) {
+          console.warn('Erro ao pausar:', e);
+        }
       } else {
         player.play();
       }
@@ -90,8 +128,35 @@ export function ReelCard({ event, isActive, onLike, onComment, onSave, onBusines
   const toggleMute = () => {
     if (player) {
       player.muted = !player.muted;
+      setIsMuted(player.muted);
     }
   };
+
+  const handleProgressChange = (locationX: number) => {
+    if (!player || !player.duration || !progressBarRef.current) return;
+
+    progressBarRef.current.measure((x, y, width) => {
+      const percentage = Math.max(0, Math.min(1, locationX / width));
+      const newTime = percentage * player.duration;
+      player.currentTime = newTime;
+    });
+  };
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: (evt) => {
+        handleProgressChange(evt.nativeEvent.locationX);
+      },
+      onPanResponderMove: (evt) => {
+        handleProgressChange(evt.nativeEvent.locationX);
+      },
+      onPanResponderRelease: () => {
+        // Optional: handle release
+      },
+    })
+  ).current;
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -103,14 +168,14 @@ export function ReelCard({ event, isActive, onLike, onComment, onSave, onBusines
 
   return (
     <View style={styles.container}>
-      <Pressable style={styles.videoContainer} onPress={togglePlayPause}>
+      <Pressable style={styles.videoContainer} onPress={handleScreenPress}>
         <VideoView
           player={player}
           style={styles.video}
           contentFit="cover"
           nativeControls={false}
         />
-        
+
         {isLoading && (
           <View style={[styles.skeleton, { backgroundColor: theme.backgroundSecondary }]}>
             <View style={styles.skeletonShimmer} />
@@ -147,11 +212,16 @@ export function ReelCard({ event, isActive, onLike, onComment, onSave, onBusines
           </Pressable>
 
           <Pressable style={styles.actionButton} onPress={toggleMute}>
-            <Feather
-              name={player?.muted ? "volume-x" : "volume-2"}
-              size={32}
-              color="#FFFFFF"
-            />
+            <View style={styles.muteButtonContainer}>
+              <Feather
+                name={isMuted ? "volume-x" : "volume-2"}
+                size={32}
+                color="#FFFFFF"
+              />
+              {isMuted && (
+                <View style={[styles.mutedIndicator, { backgroundColor: theme.error }]} />
+              )}
+            </View>
           </Pressable>
         </View>
 
@@ -188,6 +258,31 @@ export function ReelCard({ event, isActive, onLike, onComment, onSave, onBusines
             </ThemedText>
           </View>
         </View>
+
+        {/* Controls overlay - shows on tap */}
+        {showControls && (
+          <View style={styles.controlsOverlay}>
+            {/* Play/Pause button */}
+            <Pressable style={styles.playPauseButton} onPress={togglePlayPause}>
+              <Feather
+                name={player?.playing ? "pause" : "play"}
+                size={48}
+                color="#FFFFFF"
+              />
+            </Pressable>
+
+            {/* Progress bar below description */}
+            <View style={styles.controlsBottom}>
+              <View
+                ref={progressBarRef}
+                style={styles.progressBarContainer}
+                {...panResponder.panHandlers}
+              >
+                <View style={[styles.progressBar, { width: `${progress}%`, backgroundColor: theme.primary }]} />
+              </View>
+            </View>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -231,6 +326,9 @@ const styles = StyleSheet.create({
   actionButton: {
     alignItems: "center",
     gap: 4,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    borderRadius: 30,
+    padding: 12,
   },
   actionText: {
     fontSize: 12,
@@ -242,7 +340,7 @@ const styles = StyleSheet.create({
   },
   bottomInfo: {
     position: "absolute",
-    bottom: 120, // antes era 40, agora mais acima
+    bottom: 120,
     left: Spacing.lg,
     right: 80,
     gap: Spacing.sm,
@@ -291,5 +389,42 @@ const styles = StyleSheet.create({
     textShadowColor: "rgba(0, 0, 0, 0.75)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
+  },
+  muteButtonContainer: {
+    position: "relative",
+  },
+  mutedIndicator: {
+    position: "absolute",
+    bottom: -4,
+    left: 0,
+    right: 0,
+    height: 3,
+    borderRadius: 2,
+  },
+  controlsOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  playPauseButton: {
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    borderRadius: 40,
+    padding: 16,
+  },
+  controlsBottom: {
+    position: "absolute",
+    bottom: 100,
+    left: Spacing.lg,
+    right: Spacing.lg,
+  },
+  progressBarContainer: {
+    height: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
+    borderRadius: 6,
+  },
+  progressBar: {
+    height: "100%",
+    borderRadius: 6,
   },
 });

@@ -71,14 +71,14 @@ export interface Message {
   isSent: boolean;
 }
 
-export type EventCategory = 
-  | "music" 
-  | "food" 
-  | "sports" 
-  | "nightlife" 
-  | "art" 
-  | "networking" 
-  | "outdoors" 
+export type EventCategory =
+  | "music"
+  | "food"
+  | "sports"
+  | "nightlife"
+  | "art"
+  | "networking"
+  | "outdoors"
   | "other";
 
 export const EVENT_CATEGORIES: { id: EventCategory; label: string; icon: string }[] = [
@@ -91,3 +91,81 @@ export const EVENT_CATEGORIES: { id: EventCategory; label: string; icon: string 
   { id: "outdoors", label: "Ar Livre", icon: "sun" },
   { id: "other", label: "Outros", icon: "star" },
 ];
+
+// API Types for Event Creation
+export interface PostType {
+  id: number;
+  name: string;
+  icon: string;
+}
+
+export interface CreateEventPayload {
+  photos: string[];
+  type_post_id: number;
+  address: string;
+  zip_code: string;
+  neighborhood: string;
+  number: string;
+  citie_id: number;
+  state_id: number;
+  start_event: string;
+  end_event: string;
+  name: string;
+  description?: string;
+}
+
+export interface CreateEventResponse {
+  id: number;
+  name: string;
+  description?: string;
+  type_post_id: number;
+  address: string;
+  zip_code: string;
+  neighborhood: string;
+  number: string;
+  citie_id: number;
+  state_id: number;
+  start_event: string;
+  end_event: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ApiPostPhoto {
+  id: number;
+  post_id: number;
+  path_photo: string;
+  type: "image" | "video";
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ApiPost {
+  id: number;
+  name: string;
+  description: string;
+  address: string;
+  zip_code: string;
+  neighborhood: string;
+  number: string;
+  citie_id: number;
+  state_id: number;
+  start_event: string;
+  end_event: string;
+  latitude: number | null;
+  longitude: number | null;
+  user: {
+    id: number;
+    name: string;
+    user_profile_picture: string | null;
+  };
+  type_post: {
+    id: number;
+    name: string;
+    icon: string;
+  };
+  photos: ApiPostPhoto[];
+  like_post: any[]; // Define better if structure is known
+  comments_chained: any[]; // Define better if structure is known
+  distance: number | null;
+}

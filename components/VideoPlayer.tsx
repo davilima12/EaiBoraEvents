@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { View, StyleSheet, Pressable, ActivityIndicator, Dimensions } from "react-native";
+import { View, StyleSheet, Pressable, ActivityIndicator, Dimensions, PanResponder } from "react-native";
 import { VideoView, useVideoPlayer } from "expo-video";
 import { Feather } from "@expo/vector-icons";
 import { useTheme } from "@/hooks/useTheme";
@@ -11,18 +11,25 @@ interface VideoPlayerProps {
   uri: string;
   thumbnail?: string;
   style?: any;
+  shouldPlay?: boolean;
 }
 
-export function VideoPlayer({ uri, thumbnail, style }: VideoPlayerProps) {
+export function VideoPlayer({ uri, thumbnail, style, shouldPlay = true }: VideoPlayerProps) {
   const { theme } = useTheme();
   const [isLoading, setIsLoading] = useState(true);
-  const [isScreenFocused, setIsScreenFocused] = useState(true); // Novo estado para foco da tela
+  const [isScreenFocused, setIsScreenFocused] = useState(true);
+  const [progress, setProgress] = useState(0);
+  const [isMuted, setIsMuted] = useState(false);
+  const [showControls, setShowControls] = useState(false);
+  const [isPausedManually, setIsPausedManually] = useState(false);
   const player = useVideoPlayer(uri, (player) => {
     player.loop = true;
     player.muted = false;
   });
 
   const videoRef = useRef<View>(null);
+  const progressBarRef = useRef<View>(null);
+  const hideControlsTimeout = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (player) {
@@ -30,59 +37,161 @@ export function VideoPlayer({ uri, thumbnail, style }: VideoPlayerProps) {
     }
   }, [player]);
 
-  const checkVisibility = () => {
-    if (!isScreenFocused) return; // Verificar se a tela está focada antes de continuar
-
-    if (videoRef.current) {
-      videoRef.current.measure((x, y, width, height, pageX, pageY) => {
-        const isVisible = pageY >= 0 && pageY + height <= screenHeight;
-        if (player) {
-          if (isVisible) {
-            player.play();
-          } else {
-            player.pause();
-          }
-        }
-      });
-    }
-  };
-
   useEffect(() => {
-    const interval = setInterval(checkVisibility, 500);
+    if (!player) return;
+
+    const interval = setInterval(() => {
+      if (player.currentTime && player.duration) {
+        const progressPercent = (player.currentTime / player.duration) * 100;
+        setProgress(progressPercent);
+      }
+    }, 100);
+
     return () => clearInterval(interval);
-  }, [isScreenFocused]); // Adicionar dependência do foco da tela
+  }, [player]);
+
+  // Control playback based on shouldPlay, screen focus, and manual pause
+  useEffect(() => {
+    if (!player) return;
+
+    if (shouldPlay && isScreenFocused && !isPausedManually) {
+      player.play();
+    } else {
+      try {
+        player.pause();
+      } catch (e) {
+        console.warn('Erro ao pausar:', e);
+      }
+    }
+  }, [shouldPlay, isScreenFocused, isPausedManually, player]);
 
   useFocusEffect(
     React.useCallback(() => {
       console.log("Screen focused: Playing video");
-      setIsScreenFocused(true); // Atualizar estado quando a tela ganha foco
-      if (player) {
-        player.play();
-      }
+      setIsScreenFocused(true);
 
       return () => {
         console.log("Screen unfocused: Pausing video");
-        setIsScreenFocused(false); // Atualizar estado quando a tela perde foco
-        if (player) {
-          player.pause();
-        }
+        setIsScreenFocused(false);
       };
-    }, [player])
+    }, [])
   );
+
+  const handleProgressChange = (locationX: number) => {
+    if (!player || !player.duration || !progressBarRef.current) return;
+
+    progressBarRef.current.measure((x, y, width) => {
+      const percentage = Math.max(0, Math.min(1, locationX / width));
+      const newTime = percentage * player.duration;
+      player.currentTime = newTime;
+    });
+  };
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: (evt) => {
+        handleProgressChange(evt.nativeEvent.locationX);
+      },
+      onPanResponderMove: (evt) => {
+        handleProgressChange(evt.nativeEvent.locationX);
+      },
+      onPanResponderRelease: () => {
+        // Optional: handle release
+      },
+    })
+  ).current;
+
+  const handleScreenPress = () => {
+    setShowControls(!showControls);
+
+    // Auto-hide controls after 3 seconds
+    if (hideControlsTimeout.current) {
+      clearTimeout(hideControlsTimeout.current);
+    }
+
+    if (!showControls) {
+      hideControlsTimeout.current = setTimeout(() => {
+        setShowControls(false);
+      }, 3000);
+    }
+  };
+
+  const togglePlayPause = () => {
+    if (player) {
+      if (player.playing) {
+        try {
+          player.pause();
+          setIsPausedManually(true);
+        } catch (e) {
+          console.warn('Erro ao pausar:', e);
+        }
+      } else {
+        player.play();
+        setIsPausedManually(false);
+      }
+    }
+  };
+
+  const toggleMute = () => {
+    if (player) {
+      player.muted = !player.muted;
+      setIsMuted(player.muted);
+    }
+  };
 
   return (
     <View ref={videoRef} style={[styles.container, style]}>
-      <VideoView
-        player={player}
-        style={styles.video}
-        contentFit="cover"
-        nativeControls={false}
-      />
-      {isLoading ? (
-        <View style={[styles.skeleton, { backgroundColor: theme.backgroundSecondary }]}> 
-          <View style={styles.skeletonShimmer} />
+      <Pressable style={styles.videoContainer} onPress={handleScreenPress}>
+        <VideoView
+          player={player}
+          style={styles.video}
+          contentFit="cover"
+          nativeControls={false}
+        />
+        {isLoading ? (
+          <View style={[styles.skeleton, { backgroundColor: theme.backgroundSecondary }]}>
+            <View style={styles.skeletonShimmer} />
+          </View>
+        ) : null}
+      </Pressable>
+
+      {/* Mute button */}
+      <Pressable style={styles.muteButton} onPress={toggleMute}>
+        <View style={styles.muteButtonContainer}>
+          <Feather
+            name={isMuted ? "volume-x" : "volume-2"}
+            size={24}
+            color="#FFFFFF"
+          />
+          {isMuted && (
+            <View style={[styles.mutedIndicator, { backgroundColor: theme.error }]} />
+          )}
         </View>
-      ) : null}
+      </Pressable>
+
+      {/* Interactive Progress bar with drag support */}
+      <View
+        ref={progressBarRef}
+        style={styles.progressBarContainer}
+        {...panResponder.panHandlers}
+      >
+        <View style={[styles.progressBar, { width: `${progress}%`, backgroundColor: theme.primary }]} />
+      </View>
+
+      {/* Controls overlay - shows on tap */}
+      {showControls && (
+        <View style={styles.controlsOverlay}>
+          <Pressable style={styles.playPauseButton} onPress={togglePlayPause}>
+            <Feather
+              name={player?.playing ? "pause" : "play"}
+              size={48}
+              color="#FFFFFF"
+            />
+          </Pressable>
+        </View>
+      )}
     </View>
   );
 }
@@ -103,5 +212,51 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
     backgroundColor: "rgba(255, 255, 255, 0.1)",
+  },
+  progressBarContainer: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
+  },
+  progressBar: {
+    height: "100%",
+  },
+  muteButton: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    borderRadius: 20,
+    padding: 8,
+  },
+  muteButtonContainer: {
+    position: "relative",
+  },
+  mutedIndicator: {
+    position: "absolute",
+    bottom: -4,
+    left: 0,
+    right: 0,
+    height: 3,
+    borderRadius: 2,
+  },
+  videoContainer: {
+    width: "100%",
+    height: "100%",
+  },
+  controlsOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    justifyContent: "center",
+    alignItems: "center",
+    pointerEvents: "box-none",
+  },
+  playPauseButton: {
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    borderRadius: 40,
+    padding: 16,
   },
 });
