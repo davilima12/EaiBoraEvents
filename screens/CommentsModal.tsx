@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from "react";
-import { View, StyleSheet, TextInput, Pressable, Alert, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
+import React, { useState, useEffect, useRef } from "react";
+import { View, StyleSheet, TextInput, Pressable, Alert, KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView } from "react-native";
 import { useRoute } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
 import { ScreenKeyboardAwareScrollView } from "@/components/ScreenKeyboardAwareScrollView";
 import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/hooks/useAuth";
-import { database } from "@/services/database";
+import { api } from "@/services/api";
 import { Spacing, BorderRadius } from "@/constants/theme";
 
 interface Comment {
@@ -16,9 +16,70 @@ interface Comment {
   userAvatar?: string;
   text: string;
   timestamp: string;
+  parentId?: string | null;
+  replies?: Comment[];
 }
 
 const POPULAR_EMOJIS = ["🔥", "👏", "❤️", "😂", "😍", "😮", "😢", "😡"];
+
+const CommentItem = ({ comment, onReply, depth = 0 }: { comment: Comment; onReply: (comment: Comment) => void; depth?: number }) => {
+  const { theme } = useTheme();
+  const [showReplies, setShowReplies] = useState(false);
+  const hasReplies = comment.replies && comment.replies.length > 0;
+
+  const formatCommentTime = (timestamp: string) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    if (diffMins < 1) return "agora";
+    if (diffMins < 60) return `${diffMins}m`;
+    if (diffHours < 24) return `${diffHours}h`;
+    if (diffDays < 7) return `${diffDays}d`;
+    return date.toLocaleDateString("pt-BR", { day: "numeric", month: "short" });
+  };
+
+  return (
+    <View style={[styles.commentItemContainer, { marginLeft: depth * Spacing.xs }]}>
+      <View style={styles.commentItem}>
+        <View style={[styles.commentAvatar, { backgroundColor: theme.primary, width: depth > 0 ? 24 : 32, height: depth > 0 ? 24 : 32 }]}>
+          <ThemedText style={[styles.commentAvatarText, { fontSize: depth > 0 ? 12 : 14 }]}>{comment.userName[0]}</ThemedText>
+        </View>
+        <View style={styles.commentContent}>
+          <View style={styles.commentHeader}>
+            <ThemedText style={styles.commentUserName}>{comment.userName}</ThemedText>
+            <ThemedText style={[styles.commentTime, { color: theme.textSecondary }]}>{formatCommentTime(comment.timestamp)}</ThemedText>
+          </View>
+          <ThemedText style={[styles.commentText, { color: theme.textSecondary }]}>{comment.text}</ThemedText>
+          <Pressable onPress={() => onReply(comment)} style={{ marginTop: 4 }}>
+            <ThemedText style={{ fontSize: 12, fontWeight: "600", color: theme.textSecondary }}>Responder</ThemedText>
+          </Pressable>
+          {hasReplies && (
+            <View>
+              {!showReplies && (
+                <Pressable onPress={() => setShowReplies(true)} style={{ marginLeft: 32 + Spacing.sm, marginTop: Spacing.xs }}>
+                  <ThemedText style={{ fontSize: 12, color: theme.textSecondary, fontWeight: "600" }}>Ver {comment.replies?.length} respostas</ThemedText>
+                </Pressable>
+              )}
+              {showReplies && (
+                <View style={{ marginTop: Spacing.sm }}>
+                  {comment.replies?.map((reply) => (
+                    <CommentItem key={reply.id} comment={reply} onReply={onReply} depth={depth + 1} />
+                  ))}
+                  <Pressable onPress={() => setShowReplies(false)} style={{ marginLeft: 32 + Spacing.sm, marginTop: Spacing.xs, marginBottom: Spacing.sm }}>
+                    <ThemedText style={{ fontSize: 12, color: theme.textSecondary }}>Ocultar respostas</ThemedText>
+                  </Pressable>
+                </View>
+              )}
+            </View>
+          )}
+        </View>
+      </View>
+    </View>
+  );
+};
 
 export default function CommentsModal() {
   const route = useRoute();
@@ -28,16 +89,30 @@ export default function CommentsModal() {
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentText, setCommentText] = useState("");
   const [loading, setLoading] = useState(true);
+  const [replyingTo, setReplyingTo] = useState<{ id: string; userName: string } | null>(null);
+  const inputRef = useRef<TextInput>(null);
 
   useEffect(() => {
     loadComments();
   }, [eventId]);
 
+  const adaptComment = (c: any): Comment => ({
+    id: c.id.toString(),
+    userId: c.user_id.toString(),
+    userName: c.user.name,
+    userAvatar: c.user.user_profile_picture,
+    text: c.comment,
+    timestamp: c.created_at,
+    parentId: c.post_comment_id ? c.post_comment_id.toString() : null,
+    replies: c.answers ? c.answers.map(adaptComment) : [],
+  });
+
   const loadComments = async () => {
     if (!eventId) return;
     try {
-      const commentsData = await database.getComments(eventId);
-      setComments(commentsData);
+      const post = await api.getPostById(Number(eventId));
+      const adaptedComments: Comment[] = post.comments_chained.map(adaptComment);
+      setComments(adaptedComments);
     } catch (error) {
       console.error("Error loading comments:", error);
     } finally {
@@ -47,16 +122,10 @@ export default function CommentsModal() {
 
   const handleAddComment = async () => {
     if (!user || !eventId || !commentText.trim()) return;
-
     try {
-      await database.addComment(
-        eventId,
-        user.id,
-        user.name,
-        user.avatar,
-        commentText.trim()
-      );
+      await api.commentOnPost(Number(eventId), commentText.trim(), replyingTo ? Number(replyingTo.id) : undefined);
       setCommentText("");
+      setReplyingTo(null);
       await loadComments();
     } catch (error) {
       console.error("Error adding comment:", error);
@@ -64,57 +133,42 @@ export default function CommentsModal() {
     }
   };
 
-
-  const handleEmojiPress = (emoji: string) => {
-    setCommentText((prev) => prev + emoji);
+  const handleReply = (c: Comment) => {
+    setReplyingTo({ id: c.id, userName: c.userName });
+    inputRef.current?.focus();
   };
 
-  const formatCommentTime = (timestamp: string) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
+  const handleCancelReply = () => setReplyingTo(null);
 
-    if (diffMins < 1) return "agora";
-    if (diffMins < 60) return `${diffMins}m`;
-    if (diffHours < 24) return `${diffHours}h`;
-    if (diffDays < 7) return `${diffDays}d`;
-    return date.toLocaleDateString("pt-BR", { day: "numeric", month: "short" });
-  };
+  const handleEmojiPress = (emoji: string) => setCommentText((prev) => prev + emoji);
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: theme.backgroundRoot }}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 66 : 32}
-    >
-      <View style={{ flex: 1 }}>
-        <ScreenKeyboardAwareScrollView contentContainerStyle={{ paddingBottom: 80 }}>
-
-          <View style={styles.commentsList}>
-            {comments.length === 0 ? (
-              <ThemedText style={[styles.emptyComments, { color: theme.textSecondary }]}>Adicione um comentario!</ThemedText>
-            ) : (
-              comments.map((comment) => (
-                <View key={comment.id} style={styles.commentItem}>
-                  <View style={[styles.commentAvatar, { backgroundColor: theme.primary }]}>
-                    <ThemedText style={styles.commentAvatarText}>{comment.userName[0]}</ThemedText>
-                  </View>
-                  <View style={styles.commentContent}>
-                    <View style={styles.commentHeader}>
-                      <ThemedText style={styles.commentUserName}>{comment.userName}</ThemedText>
-                      <ThemedText style={[styles.commentTime, { color: theme.textSecondary }]}>{formatCommentTime(comment.timestamp)}</ThemedText>
-                    </View>
-                    <ThemedText style={[styles.commentText, { color: theme.textSecondary }]}>{comment.text}</ThemedText>
-                  </View>
-                </View>
-              ))
-            )}
-          </View>
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: theme.backgroundRoot }} behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={0}>
+      <View style={{ flex: 1, paddingTop: 0, marginTop: 0 }}>
+        <ScreenKeyboardAwareScrollView contentContainerStyle={{ paddingBottom: 180, paddingTop: 0 }}>
+          {loading ? (
+            <ActivityIndicator size="large" color={theme.primary} style={{ marginTop: 20 }} />
+          ) : comments.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <ThemedText style={[styles.emptyComments, { color: theme.textSecondary }]}>Ainda não há nenhum comentário</ThemedText>
+            </View>
+          ) : (
+            <View style={styles.commentsList}>
+              {comments.map((comment) => (
+                <CommentItem key={comment.id} comment={comment} onReply={handleReply} />
+              ))}
+            </View>
+          )}
         </ScreenKeyboardAwareScrollView>
         <View style={[styles.commentInputFixed, { backgroundColor: theme.backgroundSecondary }]}>
+          {replyingTo && (
+            <View style={[styles.replyContainer, { borderBottomColor: theme.backgroundTertiary }]}>
+              <ThemedText style={{ fontSize: 12, color: theme.textSecondary }}>Respondendo a <ThemedText style={{ fontWeight: "bold" }}>{replyingTo.userName}</ThemedText></ThemedText>
+              <Pressable onPress={handleCancelReply}>
+                <Feather name="x" size={16} color={theme.textSecondary} />
+              </Pressable>
+            </View>
+          )}
           <View style={styles.emojiContainer}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.emojiList}>
               {POPULAR_EMOJIS.map((emoji, index) => (
@@ -128,10 +182,11 @@ export default function CommentsModal() {
             <View style={[styles.commentAvatar, { backgroundColor: theme.primary, marginRight: Spacing.sm }]}>
               <ThemedText style={styles.commentAvatarText}>{user?.name[0] || "U"}</ThemedText>
             </View>
-            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
+            <View style={{ flex: 1, flexDirection: "row", alignItems: "center" }}>
               <TextInput
+                ref={inputRef}
                 style={[styles.input, { color: theme.text }]}
-                placeholder="Adicione um comentário..."
+                placeholder={replyingTo ? `Respondendo a ${replyingTo.userName}...` : "Adicione um comentário..."}
                 placeholderTextColor={theme.textSecondary}
                 value={commentText}
                 onChangeText={setCommentText}
@@ -144,30 +199,31 @@ export default function CommentsModal() {
           </View>
         </View>
       </View>
-    </KeyboardAvoidingView>
+    </KeyboardAvoidingView >
   );
 }
 
 const styles = StyleSheet.create({
-  header: {
-    padding: Spacing.xl,
-    paddingBottom: Spacing.md,
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: Spacing.xl,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: "700",
-    marginBottom: 4,
-  },
-  count: {
+  emptyComments: {
+    textAlign: "center",
     fontSize: 14,
   },
-  commentInput: {
+  commentsList: {
+    paddingHorizontal: Spacing.xs,
+    marginTop: 10,
+    gap: Spacing.lg,
+  },
+  commentItemContainer: {
+    marginBottom: Spacing.xs,
+  },
+  commentItem: {
     flexDirection: "row",
-    alignItems: "center",
-    padding: Spacing.md,
-    borderRadius: BorderRadius.md,
-    marginHorizontal: Spacing.xl,
-    marginBottom: Spacing.lg,
     gap: Spacing.sm,
   },
   commentAvatar: {
@@ -181,24 +237,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: "#FFFFFF",
-  },
-  input: {
-    flex: 1,
-    fontSize: 15,
-    maxHeight: 80,
-  },
-  commentsList: {
-    paddingHorizontal: Spacing.xl,
-    gap: Spacing.lg,
-  },
-  emptyComments: {
-    textAlign: "center",
-    fontSize: 14,
-    paddingVertical: Spacing.xl,
-  },
-  commentItem: {
-    flexDirection: "row",
-    gap: Spacing.sm,
   },
   commentContent: {
     flex: 1,
@@ -230,8 +268,7 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     marginHorizontal: Spacing.xl,
     marginBottom: Spacing['2xl'],
-    marginTop: Spacing.md, // espaçamento do topo
-    backgroundColor: undefined,
+    marginTop: Spacing.md,
   },
   commentInputFixed: {
     position: "absolute",
@@ -250,13 +287,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xl,
     gap: Spacing.md,
     flexGrow: 1,
-    justifyContent: 'center',
+    justifyContent: "center",
   },
   emojiButton: {
     padding: Spacing.xs,
   },
   emojiText: {
     fontSize: 24,
-    lineHeight: 30, // Aumentado para evitar corte
+    lineHeight: 30,
+  },
+  replyContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: 1,
+  },
+  input: {
+    flex: 1,
   },
 });

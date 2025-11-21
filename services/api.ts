@@ -301,7 +301,7 @@ export const api = {
         });
 
         const data = await response.json();
-        console.log(data)
+        console.log(data[0].comments_chained[0].answers)
         if (!response.ok) {
             throw new Error(data.message || "Erro ao buscar posts");
         }
@@ -359,6 +359,29 @@ export const api = {
         if (!response.ok) {
             const data = await response.json();
             throw new Error(data.message || "Erro ao remover curtida");
+        }
+    },
+
+    async commentOnPost(postId: number, text: string, replyToId?: number): Promise<void> {
+        const token = await getAuthToken();
+        const body: any = { comment: text };
+        if (replyToId) {
+            body.post_comment_id = replyToId;
+        }
+
+        const response = await fetch(`${API_URL}/post/comment/${postId}`, {
+            method: "POST",
+            headers: {
+                Accept: "application/json",
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(body),
+        });
+
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.message || "Erro ao comentar");
         }
     },
 };
