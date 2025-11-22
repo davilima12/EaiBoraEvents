@@ -28,8 +28,8 @@ export default function FeedScreen() {
       const cachedLocation = locationService.getCachedLocation();
       const location = cachedLocation || await locationService.getCurrentLocation();
 
-      // Fetch posts from API
-      const apiPosts = await api.getPosts();
+      // Fetch posts from API with location
+      const apiPosts = await api.getPosts(location?.latitude, location?.longitude);
 
       // Adapt API posts to Event type
       const adaptedEvents: Event[] = apiPosts.map((post) => {
@@ -57,6 +57,17 @@ export default function FeedScreen() {
         };
         const category = categoryMap[post.type_post.name] || "other";
 
+        // Calculate distance if user location is available
+        let calculatedDistance = post.distance || 0;
+        if (location && post.latitude && post.longitude) {
+          calculatedDistance = locationService.calculateDistance(
+            location.latitude,
+            location.longitude,
+            post.latitude,
+            post.longitude
+          );
+        }
+
         return {
           id: post.id.toString(),
           title: post.name,
@@ -76,7 +87,7 @@ export default function FeedScreen() {
           likes: post.like_post.length,
           isLiked: post.like_post.some((like: any) => like.user_id === Number(user.id)),
           isSaved: false,
-          distance: post.distance || 0,
+          distance: calculatedDistance,
           comments: post.comments_chained.map((c: any) => ({
             id: c.id.toString(),
             userId: c.user_id.toString(),

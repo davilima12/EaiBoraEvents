@@ -290,9 +290,23 @@ export const api = {
         return data;
     },
 
-    async getPosts(): Promise<ApiPost[]> {
+    async getPosts(latitude?: number, longitude?: number): Promise<ApiPost[]> {
         const token = await getAuthToken();
-        const response = await fetch(`${API_URL}/post`, {
+
+        // Build URL with query parameters if lat/lng provided
+        let url = `${API_URL}/post`;
+        const params = new URLSearchParams();
+        console.log("latitude", latitude)
+        if (latitude !== undefined && longitude !== undefined) {
+            params.append('latitude', latitude.toString());
+            params.append('longitude', longitude.toString());
+        }
+
+        if (params.toString()) {
+            url += `?${params.toString()}`;
+        }
+
+        const response = await fetch(url, {
             method: "GET",
             headers: {
                 Accept: "application/json",
@@ -301,7 +315,7 @@ export const api = {
         });
 
         const data = await response.json();
-        console.log(data[0])
+        // console.log(data[0])
         if (!response.ok) {
             throw new Error(data.message || "Erro ao buscar posts");
         }
