@@ -17,6 +17,7 @@ interface ReelCardProps {
   onComment: () => void;
   onSave: () => void;
   onBusinessPress?: () => void;
+  onPress?: () => void;
 }
 
 const ReelVideoItem = ({ uri, shouldPlay, onScreenPress }: { uri: string; shouldPlay: boolean; onScreenPress: () => void }) => {
@@ -187,7 +188,7 @@ const ReelVideoItem = ({ uri, shouldPlay, onScreenPress }: { uri: string; should
   );
 };
 
-export function ReelCard({ event, isActive, onLike, onComment, onSave, onBusinessPress }: ReelCardProps) {
+export function ReelCard({ event, isActive, onLike, onComment, onSave, onBusinessPress, onPress }: ReelCardProps) {
   const { theme } = useTheme();
   const [activeVideoIndex, setActiveVideoIndex] = useState(0);
   const [isScreenFocused, setIsScreenFocused] = useState(true);
@@ -302,20 +303,27 @@ export function ReelCard({ event, isActive, onLike, onComment, onSave, onBusines
             </ThemedText>
           </Pressable>
 
-          <ThemedText style={styles.title} numberOfLines={2}>
-            {event.title}
-          </ThemedText>
+          <Pressable
+            onPress={(e) => {
+              e.stopPropagation();
+              onPress?.();
+            }}
+          >
+            <ThemedText style={styles.title} numberOfLines={2}>
+              {event.title}
+            </ThemedText>
 
-          <View style={styles.metadata}>
-            <Feather name="calendar" size={14} color="#FFFFFF" />
-            <ThemedText style={styles.metadataText}>
-              {formatDate(event.date)}
-            </ThemedText>
-            <Feather name="map-pin" size={14} color="#FFFFFF" />
-            <ThemedText style={styles.metadataText}>
-              {event.distance.toFixed(1)} km
-            </ThemedText>
-          </View>
+            <View style={styles.metadata}>
+              <Feather name="calendar" size={14} color="#FFFFFF" />
+              <ThemedText style={styles.metadataText}>
+                {formatDate(event.date)}
+              </ThemedText>
+              <Feather name="map-pin" size={14} color="#FFFFFF" />
+              <ThemedText style={styles.metadataText}>
+                {event.distance.toFixed(1)} km
+              </ThemedText>
+            </View>
+          </Pressable>
         </View>
       </View>
     </View>
