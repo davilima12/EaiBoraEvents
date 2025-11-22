@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { View, StyleSheet, Pressable, Dimensions, PanResponder } from "react-native";
+import { View, StyleSheet, Pressable, Dimensions, PanResponder, FlatList, ViewToken } from "react-native";
 import { VideoView, useVideoPlayer } from "expo-video";
 import { Feather } from "@expo/vector-icons";
 import { ThemedText } from "@/components/ThemedText";
@@ -19,55 +19,24 @@ interface ReelCardProps {
   onBusinessPress?: () => void;
 }
 
-export function ReelCard({ event, isActive, onLike, onComment, onSave, onBusinessPress }: ReelCardProps) {
+const ReelVideoItem = ({ uri, shouldPlay, onScreenPress }: { uri: string; shouldPlay: boolean; onScreenPress: () => void }) => {
   const { theme } = useTheme();
   const [isLoading, setIsLoading] = useState(true);
-  const [isScreenFocused, setIsScreenFocused] = useState(true);
-  const [isMuted, setIsMuted] = useState(false);
   const [showControls, setShowControls] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [isMuted, setIsMuted] = useState(false);
 
   const progressBarRef = useRef<View>(null);
   const hideControlsTimeout = useRef<NodeJS.Timeout | null>(null);
 
-  const videoMedia = event.media?.find((m) => m.type === "video");
-  if (!videoMedia) return null;
-
-  const player = useVideoPlayer(videoMedia.uri, (player) => {
+  const player = useVideoPlayer(uri, (player) => {
     player.loop = true;
     player.muted = false;
-    if (isActive) {
-      player.play();
-    }
   });
-
-  useFocusEffect(
-    React.useCallback(() => {
-      setIsScreenFocused(true);
-      if (player && isActive) {
-        try {
-          player.play();
-        } catch (e) {
-          console.warn('Erro ao dar play:', e);
-        }
-      }
-      return () => {
-        setIsScreenFocused(false);
-        if (player) {
-          try {
-            player.pause();
-          } catch (e) {
-            console.warn('Erro ao pausar:', e);
-          }
-        }
-      };
-    }, [player, isActive])
-  );
 
   useEffect(() => {
     if (player) {
-      setIsLoading(false);
-      if (isActive && isScreenFocused) {
+      if (shouldPlay) {
         try {
           player.play();
         } catch (e) {
@@ -81,7 +50,13 @@ export function ReelCard({ event, isActive, onLike, onComment, onSave, onBusines
         }
       }
     }
-  }, [isActive, player, isScreenFocused]);
+  }, [shouldPlay, player]);
+
+  useEffect(() => {
+    if (player) {
+      setIsLoading(false);
+    }
+  }, [player]);
 
   useEffect(() => {
     if (!player) return;
@@ -98,8 +73,8 @@ export function ReelCard({ event, isActive, onLike, onComment, onSave, onBusines
 
   const handleScreenPress = () => {
     setShowControls(!showControls);
+    onScreenPress();
 
-    // Auto-hide controls after 3 seconds
     if (hideControlsTimeout.current) {
       clearTimeout(hideControlsTimeout.current);
     }
@@ -158,16 +133,8 @@ export function ReelCard({ event, isActive, onLike, onComment, onSave, onBusines
     })
   ).current;
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("pt-BR", {
-      day: "numeric",
-      month: "short",
-    });
-  };
-
   return (
-    <View style={styles.container}>
+    <View style={styles.videoItemContainer}>
       <Pressable style={styles.videoContainer} onPress={handleScreenPress}>
         <VideoView
           player={player}
@@ -183,7 +150,112 @@ export function ReelCard({ event, isActive, onLike, onComment, onSave, onBusines
         )}
       </Pressable>
 
-      <View style={styles.overlay}>
+      {showControls && (
+        <View style={styles.controlsOverlay}>
+          <Pressable style={styles.playPauseButton} onPress={togglePlayPause}>
+            <Feather
+              name={player?.playing ? "pause" : "play"}
+              size={48}
+              color="#FFFFFF"
+            />
+          </Pressable>
+
+          <View style={styles.controlsBottom}>
+            <View
+              ref={progressBarRef}
+              style={styles.progressBarContainer}
+              {...panResponder.panHandlers}
+            >
+              <View style={[styles.progressBar, { width: `${progress}%`, backgroundColor: theme.primary }]} />
+            </View>
+          </View>
+        </View>
+      )}
+
+      {showControls && (
+        <Pressable style={styles.muteButtonOverlay} onPress={toggleMute}>
+          <View style={styles.muteButtonContainer}>
+            <Feather
+              name={isMuted ? "volume-x" : "volume-2"}
+              size={32}
+              color="#FFFFFF"
+            />
+          </View>
+        </Pressable>
+      )}
+    </View>
+  );
+};
+
+export function ReelCard({ event, isActive, onLike, onComment, onSave, onBusinessPress }: ReelCardProps) {
+  const { theme } = useTheme();
+  const [activeVideoIndex, setActiveVideoIndex] = useState(0);
+  const [isScreenFocused, setIsScreenFocused] = useState(true);
+
+  // Filter only videos
+  const videos = event.media?.filter((m) => m.type === "video") || [];
+
+  useFocusEffect(
+    React.useCallback(() => {
+      setIsScreenFocused(true);
+      return () => {
+        setIsScreenFocused(false);
+      };
+    }, [])
+  );
+
+  const onViewableItemsChanged = useRef(
+    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
+      if (viewableItems.length > 0 && viewableItems[0].index !== null) {
+        setActiveVideoIndex(viewableItems[0].index);
+      }
+    }
+  ).current;
+
+  const viewabilityConfig = useRef({
+    itemVisiblePercentThreshold: 50,
+  }).current;
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString("pt-BR", {
+      day: "numeric",
+      month: "short",
+    });
+  };
+
+  if (videos.length === 0) return null;
+
+  return (
+    <View style={styles.container}>
+      <FlatList
+        data={videos}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        keyExtractor={(item, index) => `${event.id}-video-${index}`}
+        renderItem={({ item, index }) => (
+          <ReelVideoItem
+            uri={item.uri}
+            shouldPlay={isActive && isScreenFocused && index === activeVideoIndex}
+            onScreenPress={() => { }}
+          />
+        )}
+        onViewableItemsChanged={onViewableItemsChanged}
+        viewabilityConfig={viewabilityConfig}
+        style={{ width, height }}
+      />
+
+      {/* Pagination Counter */}
+      {videos.length > 1 && (
+        <View style={styles.paginationCounterContainer}>
+          <ThemedText style={styles.paginationCounterText}>
+            {activeVideoIndex + 1}/{videos.length}
+          </ThemedText>
+        </View>
+      )}
+
+      <View style={styles.overlay} pointerEvents="box-none">
         <View style={styles.rightActions}>
           <Pressable style={styles.actionButton} onPress={onLike}>
             <Feather
@@ -209,19 +281,6 @@ export function ReelCard({ event, isActive, onLike, onComment, onSave, onBusines
               color={event.isSaved ? theme.success : "#FFFFFF"}
               fill={event.isSaved ? theme.success : "transparent"}
             />
-          </Pressable>
-
-          <Pressable style={styles.actionButton} onPress={toggleMute}>
-            <View style={styles.muteButtonContainer}>
-              <Feather
-                name={isMuted ? "volume-x" : "volume-2"}
-                size={32}
-                color="#FFFFFF"
-              />
-              {isMuted && (
-                <View style={[styles.mutedIndicator, { backgroundColor: theme.error }]} />
-              )}
-            </View>
           </Pressable>
         </View>
 
@@ -258,31 +317,6 @@ export function ReelCard({ event, isActive, onLike, onComment, onSave, onBusines
             </ThemedText>
           </View>
         </View>
-
-        {/* Controls overlay - shows on tap */}
-        {showControls && (
-          <View style={styles.controlsOverlay}>
-            {/* Play/Pause button */}
-            <Pressable style={styles.playPauseButton} onPress={togglePlayPause}>
-              <Feather
-                name={player?.playing ? "pause" : "play"}
-                size={48}
-                color="#FFFFFF"
-              />
-            </Pressable>
-
-            {/* Progress bar below description */}
-            <View style={styles.controlsBottom}>
-              <View
-                ref={progressBarRef}
-                style={styles.progressBarContainer}
-                {...panResponder.panHandlers}
-              >
-                <View style={[styles.progressBar, { width: `${progress}%`, backgroundColor: theme.primary }]} />
-              </View>
-            </View>
-          </View>
-        )}
       </View>
     </View>
   );
@@ -293,6 +327,13 @@ const styles = StyleSheet.create({
     width,
     height,
     position: "relative",
+    backgroundColor: "black",
+  },
+  videoItemContainer: {
+    width,
+    height,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   videoContainer: {
     width: "100%",
@@ -319,16 +360,16 @@ const styles = StyleSheet.create({
   rightActions: {
     position: "absolute",
     right: Spacing.lg,
-    bottom: 120,
+    bottom: 130,
     gap: Spacing.xl,
     alignItems: "center",
   },
   actionButton: {
     alignItems: "center",
     gap: 4,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+
     borderRadius: 30,
-    padding: 12,
+
   },
   actionText: {
     fontSize: 12,
@@ -393,6 +434,14 @@ const styles = StyleSheet.create({
   muteButtonContainer: {
     position: "relative",
   },
+  muteButtonOverlay: {
+    position: 'absolute',
+    top: 100,
+    right: 20,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    borderRadius: 30,
+    padding: 8,
+  },
   mutedIndicator: {
     position: "absolute",
     bottom: -4,
@@ -426,5 +475,20 @@ const styles = StyleSheet.create({
   progressBar: {
     height: "100%",
     borderRadius: 6,
+  },
+  paginationCounterContainer: {
+    position: "absolute",
+    top: 60,
+    right: 20,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    zIndex: 10,
+  },
+  paginationCounterText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "600",
   },
 });

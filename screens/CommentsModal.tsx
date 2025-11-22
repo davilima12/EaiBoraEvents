@@ -18,12 +18,15 @@ interface Comment {
   timestamp: string;
   parentId?: string | null;
   replies?: Comment[];
+  isLiked?: boolean;
+  likes: number;
 }
 
 const POPULAR_EMOJIS = ["🔥", "👏", "❤️", "😂", "😍", "😮", "😢", "😡"];
 
-const CommentItem = ({ comment, onReply, depth = 0 }: { comment: Comment; onReply: (comment: Comment) => void; depth?: number }) => {
+const CommentItem = ({ comment, onReply, depth = 0, onRefresh }: { comment: Comment; onReply: (comment: Comment) => void; depth?: number; onRefresh?: () => void }) => {
   const { theme } = useTheme();
+  const { user } = useAuth();
   const [showReplies, setShowReplies] = useState(false);
   const hasReplies = comment.replies && comment.replies.length > 0;
 
@@ -41,41 +44,107 @@ const CommentItem = ({ comment, onReply, depth = 0 }: { comment: Comment; onRepl
     return date.toLocaleDateString("pt-BR", { day: "numeric", month: "short" });
   };
 
+  const [isLiked, setIsLiked] = useState(comment.isLiked || false);
+  const [likesCount, setLikesCount] = useState(comment.likes || 0);
+
+  const handleLike = async () => {
+    const previousState = isLiked;
+    const previousCount = likesCount;
+
+    setIsLiked(!previousState);
+    setLikesCount(previousState ? previousCount - 1 : previousCount + 1);
+
+    try {
+      if (previousState) {
+        await api.unlikeComment(Number(comment.id));
+      } else {
+        await api.likeComment(Number(comment.id));
+      }
+      if (onRefresh) onRefresh();
+    } catch (e) {
+      setIsLiked(previousState);
+      setLikesCount(previousCount);
+      console.error(e);
+    }
+  };
+
+  const handleDelete = async () => {
+    Alert.alert(
+      'Excluir comentário',
+      'Tem certeza que deseja remover este comentário?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Excluir',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.deleteComment(Number(comment.id));
+              Alert.alert('Sucesso', 'Comentário removido');
+              if (onRefresh) onRefresh();
+            } catch (e) {
+              console.error(e);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <View style={[styles.commentItemContainer, { marginLeft: depth * Spacing.xs }]}>
       <View style={styles.commentItem}>
+        {depth > 0 && <View style={styles.connector} />}
         <View style={[styles.commentAvatar, { backgroundColor: theme.primary, width: depth > 0 ? 24 : 32, height: depth > 0 ? 24 : 32 }]}>
           <ThemedText style={[styles.commentAvatarText, { fontSize: depth > 0 ? 12 : 14 }]}>{comment.userName[0]}</ThemedText>
         </View>
-        <View style={styles.commentContent}>
+        <Pressable
+          style={styles.commentContent}
+          onLongPress={user?.id === comment.userId ? handleDelete : undefined}
+          delayLongPress={500}
+        >
           <View style={styles.commentHeader}>
             <ThemedText style={styles.commentUserName}>{comment.userName}</ThemedText>
             <ThemedText style={[styles.commentTime, { color: theme.textSecondary }]}>{formatCommentTime(comment.timestamp)}</ThemedText>
           </View>
           <ThemedText style={[styles.commentText, { color: theme.textSecondary }]}>{comment.text}</ThemedText>
-          <Pressable onPress={() => onReply(comment)} style={{ marginTop: 4 }}>
-            <ThemedText style={{ fontSize: 12, fontWeight: "600", color: theme.textSecondary }}>Responder</ThemedText>
-          </Pressable>
+
+          <View style={styles.actionsRow}>
+            <Pressable onPress={handleLike} style={styles.iconButton}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Feather name="thumbs-up" size={14} color={isLiked ? theme.primary : theme.textSecondary} />
+                {likesCount > 0 && (
+                  <ThemedText style={{ fontSize: 12, color: isLiked ? theme.primary : theme.textSecondary }}>
+                    {likesCount}
+                  </ThemedText>
+                )}
+              </View>
+            </Pressable>
+            <Pressable onPress={() => onReply(comment)} style={{ marginTop: 2 }}>
+              <ThemedText style={{ fontSize: 12, fontWeight: "600", color: theme.textSecondary }}>Responder</ThemedText>
+            </Pressable>
+          </View>
+
           {hasReplies && (
             <View>
               {!showReplies && (
-                <Pressable onPress={() => setShowReplies(true)} style={{ marginLeft: 32 + Spacing.sm, marginTop: Spacing.xs }}>
+                <Pressable onPress={() => setShowReplies(true)} style={{ marginTop: Spacing.xs }}>
                   <ThemedText style={{ fontSize: 12, color: theme.textSecondary, fontWeight: "600" }}>Ver {comment.replies?.length} respostas</ThemedText>
                 </Pressable>
               )}
               {showReplies && (
                 <View style={{ marginTop: Spacing.sm }}>
                   {comment.replies?.map((reply) => (
-                    <CommentItem key={reply.id} comment={reply} onReply={onReply} depth={depth + 1} />
+                    <CommentItem key={reply.id} comment={reply} onReply={onReply} depth={depth + 1} onRefresh={onRefresh} />
                   ))}
-                  <Pressable onPress={() => setShowReplies(false)} style={{ marginLeft: 32 + Spacing.sm, marginTop: Spacing.xs, marginBottom: Spacing.sm }}>
+                  <Pressable onPress={() => setShowReplies(false)} style={{ marginTop: Spacing.xs, marginBottom: Spacing.sm }}>
                     <ThemedText style={{ fontSize: 12, color: theme.textSecondary }}>Ocultar respostas</ThemedText>
                   </Pressable>
                 </View>
               )}
             </View>
           )}
-        </View>
+        </Pressable>
       </View>
     </View>
   );
@@ -92,10 +161,6 @@ export default function CommentsModal() {
   const [replyingTo, setReplyingTo] = useState<{ id: string; userName: string } | null>(null);
   const inputRef = useRef<TextInput>(null);
 
-  useEffect(() => {
-    loadComments();
-  }, [eventId]);
-
   const adaptComment = (c: any): Comment => ({
     id: c.id.toString(),
     userId: c.user_id.toString(),
@@ -105,6 +170,8 @@ export default function CommentsModal() {
     timestamp: c.created_at,
     parentId: c.post_comment_id ? c.post_comment_id.toString() : null,
     replies: c.answers ? c.answers.map(adaptComment) : [],
+    isLiked: c.liked_comment && c.liked_comment.some((like: any) => like.user_id.toString() === user?.id),
+    likes: c.liked_comment ? c.liked_comment.length : 0,
   });
 
   const loadComments = async () => {
@@ -119,6 +186,10 @@ export default function CommentsModal() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadComments();
+  }, [eventId]);
 
   const handleAddComment = async () => {
     if (!user || !eventId || !commentText.trim()) return;
@@ -139,8 +210,9 @@ export default function CommentsModal() {
   };
 
   const handleCancelReply = () => setReplyingTo(null);
-
   const handleEmojiPress = (emoji: string) => setCommentText((prev) => prev + emoji);
+
+  const refreshComments = loadComments;
 
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: theme.backgroundRoot }} behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={0}>
@@ -155,7 +227,7 @@ export default function CommentsModal() {
           ) : (
             <View style={styles.commentsList}>
               {comments.map((comment) => (
-                <CommentItem key={comment.id} comment={comment} onReply={handleReply} />
+                <CommentItem key={comment.id} comment={comment} onReply={handleReply} onRefresh={refreshComments} />
               ))}
             </View>
           )}
@@ -199,7 +271,7 @@ export default function CommentsModal() {
           </View>
         </View>
       </View>
-    </KeyboardAvoidingView >
+    </KeyboardAvoidingView>
   );
 }
 
@@ -225,6 +297,13 @@ const styles = StyleSheet.create({
   commentItem: {
     flexDirection: "row",
     gap: Spacing.sm,
+  },
+  connector: {
+    width: 2,
+    backgroundColor: "#333",
+    marginRight: Spacing.sm,
+    marginLeft: Spacing.xs,
+    borderRadius: 1,
   },
   commentAvatar: {
     width: 32,
@@ -257,6 +336,16 @@ const styles = StyleSheet.create({
   commentText: {
     fontSize: 14,
     lineHeight: 20,
+  },
+  actionsRow: {
+    flexDirection: "row",
+    marginTop: 4,
+    marginBottom: 4,
+    gap: Spacing.md,
+    alignItems: 'center',
+  },
+  iconButton: {
+    padding: 2,
   },
   commentInputUsual: {
     flexDirection: "row",

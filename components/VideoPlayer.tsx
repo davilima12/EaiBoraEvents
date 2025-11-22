@@ -165,9 +165,6 @@ export function VideoPlayer({ uri, thumbnail, style, shouldPlay = true }: VideoP
             size={24}
             color="#FFFFFF"
           />
-          {isMuted && (
-            <View style={[styles.mutedIndicator, { backgroundColor: theme.error }]} />
-          )}
         </View>
       </Pressable>
 

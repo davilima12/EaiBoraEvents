@@ -384,4 +384,51 @@ export const api = {
             throw new Error(data.message || "Erro ao comentar");
         }
     },
+    async likeComment(commentId: number): Promise<void> {
+        const token = await getAuthToken();
+        const response = await fetch(`${API_URL}/post/liked-comment/${commentId}`, {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json',
+                Authorization: `Bearer ${token}`,
+            },
+        });
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.message || 'Erro ao curtir comentário');
+        }
+    },
+
+    async unlikeComment(commentId: number): Promise<void> {
+        const token = await getAuthToken();
+        const response = await fetch(`${API_URL}/post/liked-comment/${commentId}`, {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json',
+                Authorization: `Bearer ${token}`,
+            },
+        });
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.message || 'Erro ao remover curtida do comentário');
+        }
+    },
+
+
+
+    async deleteComment(commentId: number): Promise<void> {
+        const token = await getAuthToken();
+        const response = await fetch(`${API_URL}/removed-comment/${commentId}`, {
+            method: 'DELETE',
+            headers: {
+                Accept: 'application/json',
+                Authorization: `Bearer ${token}`,
+            },
+        });
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.message || 'Erro ao remover comentário');
+        }
+    },
+
 };
