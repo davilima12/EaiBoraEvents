@@ -157,17 +157,6 @@ export function VideoPlayer({ uri, thumbnail, style, shouldPlay = true }: VideoP
         ) : null}
       </Pressable>
 
-      {/* Mute button */}
-      <Pressable style={styles.muteButton} onPress={toggleMute}>
-        <View style={styles.muteButtonContainer}>
-          <Feather
-            name={isMuted ? "volume-x" : "volume-2"}
-            size={24}
-            color="#FFFFFF"
-          />
-        </View>
-      </Pressable>
-
       {/* Interactive Progress bar with drag support */}
       <View
         ref={progressBarRef}
@@ -186,6 +175,17 @@ export function VideoPlayer({ uri, thumbnail, style, shouldPlay = true }: VideoP
               size={48}
               color="#FFFFFF"
             />
+          </Pressable>
+
+          {/* Mute button - only visible when controls are shown */}
+          <Pressable style={styles.muteButton} onPress={toggleMute}>
+            <View style={styles.muteButtonContainer}>
+              <Feather
+                name={isMuted ? "volume-x" : "volume-2"}
+                size={24}
+                color="#FFFFFF"
+              />
+            </View>
           </Pressable>
         </View>
       )}

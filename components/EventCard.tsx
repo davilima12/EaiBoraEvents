@@ -80,19 +80,10 @@ export function EventCard({ event, onPress, onLike, onSave, onComment, onBusines
           )}
         />
         {mediaItems.length > 1 && (
-          <View style={styles.pagination}>
-            {mediaItems.map((_, index) => (
-              <View
-                key={index}
-                style={[
-                  styles.paginationDot,
-                  {
-                    backgroundColor: index === activeIndex ? theme.primary : "rgba(255, 255, 255, 0.5)",
-                    width: index === activeIndex ? 20 : 8,
-                  },
-                ]}
-              />
-            ))}
+          <View style={styles.paginationCounter}>
+            <ThemedText style={styles.paginationCounterText}>
+              {activeIndex + 1}/{mediaItems.length}
+            </ThemedText>
           </View>
         )}
       </View>
@@ -212,19 +203,20 @@ const styles = StyleSheet.create({
     width: CARD_WIDTH,
     height: 500,
   },
-  pagination: {
+  paginationCounter: {
     position: "absolute",
-    bottom: Spacing.md,
-    left: 0,
-    right: 0,
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 6,
+    top: 20,
+    right: 20,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    zIndex: 10,
   },
-  paginationDot: {
-    height: 8,
-    borderRadius: 4,
+  paginationCounterText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "600",
   },
   content: {
     padding: Spacing.lg,
