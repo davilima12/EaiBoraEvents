@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
   },
   paginationCounter: {
     position: "absolute",
-    top: 20,
+    top: 4,
     right: 20,
     backgroundColor: "rgba(0, 0, 0, 0.5)",
     paddingHorizontal: 12,

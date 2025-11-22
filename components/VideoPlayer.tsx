@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
   },
   muteButton: {
     position: "absolute",
-    top: 12,
+    top: 40,
     right: 12,
     backgroundColor: "rgba(0, 0, 0, 0.5)",
     borderRadius: 20,
