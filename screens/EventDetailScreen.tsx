@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, StyleSheet, Image, Pressable, Dimensions, ActivityIndicator } from "react-native";
+import { View, StyleSheet, Image, Pressable, Dimensions, ActivityIndicator, Linking, Platform } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
 import { ScreenKeyboardAwareScrollView } from "@/components/ScreenKeyboardAwareScrollView";
@@ -11,6 +11,7 @@ import { database } from "@/services/database";
 import { api } from "@/services/api";
 import { Event, ApiPost, EventCategory } from "@/types";
 import { Spacing, BorderRadius } from "@/constants/theme";
+import { VideoPlayer } from "@/components/VideoPlayer";
 
 const { width } = Dimensions.get("window");
 
@@ -162,9 +163,33 @@ export default function EventDetailScreen() {
     });
   };
 
+  const openMap = () => {
+    if (!event) return;
+
+    const scheme = Platform.select({ ios: 'maps:0,0?q=', android: 'geo:0,0?q=' });
+    const latLng = `${event.location.latitude},${event.location.longitude}`;
+    const label = event.title;
+    const url = Platform.select({
+      ios: `${scheme}${label}@${latLng}`,
+      android: `${scheme}${latLng}(${label})`
+    });
+
+    if (url) {
+      Linking.openURL(url).catch(err => console.error('Error opening map:', err));
+    }
+  };
+
   return (
     <ScreenKeyboardAwareScrollView>
-      <Image source={{ uri: event.images[0] }} style={styles.heroImage} />
+      {event.media && event.media.length > 0 && event.media[0].type === 'video' ? (
+        <VideoPlayer
+          uri={event.media[0].uri}
+          style={styles.heroImage}
+          shouldPlay={true}
+        />
+      ) : (
+        <Image source={{ uri: event.images[0] }} style={styles.heroImage} />
+      )}
 
       <View style={styles.content}>
         <View style={styles.header}>
@@ -223,7 +248,7 @@ export default function EventDetailScreen() {
             </View>
           </View>
 
-          <View style={styles.infoItem}>
+          <Pressable style={styles.infoItem} onPress={openMap}>
             <View style={[styles.iconCircle, { backgroundColor: theme.secondary + "20" }]}>
               <Feather name="map-pin" size={20} color={theme.secondary} />
             </View>
@@ -233,10 +258,11 @@ export default function EventDetailScreen() {
                 {event.location.address}
               </ThemedText>
               <ThemedText style={[styles.distance, { color: theme.textSecondary }]}>
-                {event.distance.toFixed(1)} km de distância
+                {event.distance.toFixed(1)} km de distância • Toque para abrir no mapa
               </ThemedText>
             </View>
-          </View>
+            <Feather name="external-link" size={16} color={theme.textSecondary} style={{ alignSelf: 'center' }} />
+          </Pressable>
         </View>
 
         <View style={styles.descriptionSection}>

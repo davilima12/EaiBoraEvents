@@ -118,13 +118,18 @@ export default function AuthScreen() {
     <ScreenKeyboardAwareScrollView>
       <View style={styles.container}>
         <View style={styles.header}>
-          <ThemedText style={styles.title}>
-            {isLogin ? "Bem-vindo de volta!" : "Criar conta"}
-          </ThemedText>
+          <View style={styles.logoContainer}>
+            <ThemedText style={styles.logoText}>Eai,</ThemedText>
+            <Image
+              source={require("../assets/images/header-logo.png")}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
+          </View>
           <ThemedText style={[styles.subtitle, { color: theme.textSecondary }]}>
             {isLogin
               ? "Entre para descobrir eventos incríveis"
-              : "Junte-se à comunidade eai bora"}
+              : "Junte-se à nossa comunidade"}
           </ThemedText>
         </View>
 
@@ -340,17 +345,17 @@ export default function AuthScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    padding: Spacing.xl,
+    padding: 0,
   },
   header: {
-    marginTop: 60,
-    marginBottom: Spacing["3xl"],
+    marginTop: 20,
+    marginBottom: Spacing["2xl"],
     alignItems: "center",
   },
   title: {
     fontSize: 28,
     fontWeight: "700",
-    marginBottom: Spacing.sm,
+    marginBottom: 0,
     lineHeight: 34,
   },
   subtitle: {
@@ -428,5 +433,26 @@ const styles = StyleSheet.create({
   loadingContainer: {
     flexDirection: "row",
     alignItems: "center",
+  },
+  logoContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 0,
+  },
+  logoText: {
+    fontSize: 36,
+    fontWeight: "900",
+    fontStyle: "italic",
+    letterSpacing: -1,
+    marginBottom: 25,
+    lineHeight: 42,
+    paddingHorizontal: 4, // Prevent italic clipping
+  },
+  logoImage: {
+    width: 220,
+    height: 120,
+    marginTop: 15,
+    marginLeft: -65,
   },
 });

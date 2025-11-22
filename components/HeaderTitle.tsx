@@ -11,12 +11,12 @@ interface HeaderTitleProps {
 export function HeaderTitle({ title }: HeaderTitleProps) {
   return (
     <View style={styles.container}>
+      <ThemedText style={styles.text}>Eai,</ThemedText>
       <Image
-        source={require("../assets/images/icon.png")}
-        style={styles.icon}
+        source={require("../assets/images/header-logo.png")}
+        style={styles.logo}
         resizeMode="contain"
       />
-      <ThemedText style={styles.title}>{title}</ThemedText>
     </View>
   );
 }
@@ -26,14 +26,20 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "flex-start",
+    gap: 0,
   },
-  icon: {
-    width: 28,
-    height: 28,
-    marginRight: Spacing.sm,
+  text: {
+    fontSize: 22,
+    fontWeight: "900",
+    fontStyle: "italic",
+    letterSpacing: -1,
+    marginBottom: 20,
+    marginTop: -8,
   },
-  title: {
-    fontSize: 17,
-    fontWeight: "600",
+  logo: {
+    width: 150,
+    height: 85,
+    marginTop: -10,
+    marginLeft: -40,
   },
 });

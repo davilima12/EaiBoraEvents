@@ -35,7 +35,7 @@ export default function FeedStackNavigator() {
         component={FeedScreen}
         options={({ navigation }) => ({
           headerTitle: "",
-          headerLeft: () => <HeaderTitle title="eai bora" />,
+          headerLeft: () => <HeaderTitle title="eai bora?" />,
           headerRight: () => (
             <View style={{ flexDirection: "row", gap: 16, marginRight: 8 }}>
               <Pressable onPress={() => (navigation as any).navigate("Notifications")}>
