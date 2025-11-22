@@ -348,6 +348,10 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: "700",
     marginBottom: Spacing.xl,
+    flexWrap: "wrap",
+    flexShrink: 1,
+    lineHeight: 36,
+    paddingTop: 4,
   },
   infoSection: {
     gap: Spacing.lg,
