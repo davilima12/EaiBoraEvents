@@ -186,7 +186,7 @@ export default function EventDetailScreen() {
         <VideoPlayer
           uri={event.media[0].uri}
           style={styles.heroImage}
-          shouldPlay={true}
+          shouldPlay={false}
         />
       ) : (
         <Image source={{ uri: event.images[0] }} style={styles.heroImage} />
