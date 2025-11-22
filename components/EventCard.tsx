@@ -3,6 +3,7 @@ import { View, StyleSheet, Pressable, Image, Dimensions, FlatList } from "react-
 import { Feather } from "@expo/vector-icons";
 import { ThemedText } from "@/components/ThemedText";
 import { VideoPlayer } from "@/components/VideoPlayer";
+import { LikesModal } from "@/components/LikesModal";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { Event } from "@/types";
@@ -23,6 +24,7 @@ interface EventCardProps {
 
 export function EventCard({ event, onPress, onLike, onSave, onComment, onBusinessPress, onVideoPress, isVisible = true }: EventCardProps) {
   const { theme } = useTheme();
+  const [showLikesModal, setShowLikesModal] = React.useState(false);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -133,55 +135,58 @@ export function EventCard({ event, onPress, onLike, onSave, onComment, onBusines
           </ThemedText>
         </Pressable>
         <View style={styles.actions}>
-          <Pressable
-            style={styles.actionButton}
-            onPress={(e) => {
-              e.stopPropagation();
-              onLike();
-            }}
-          >
-            <Feather
-              name="heart"
-              size={20}
-              color={event.isLiked ? theme.accent : theme.textSecondary}
-              fill={event.isLiked ? theme.accent : "transparent"}
-            />
-            <ThemedText style={[styles.actionText, { color: theme.textSecondary }]}>
-              {event.likes}
-            </ThemedText>
-          </Pressable>
-          <Pressable
-            style={styles.actionButton}
-            onPress={(e) => {
-              e.stopPropagation();
-              onComment();
-            }}
-          >
-            <Feather
-              name="message-circle"
-              size={20}
-              color={theme.textSecondary}
-            />
+          <View style={styles.likeContainer}>
+            <Pressable
+              style={styles.actionButton}
+              onPress={(e) => {
+                e.stopPropagation();
+                onLike();
+              }}
+            >
+              <Feather
+                name="heart"
+                size={20}
+                color={event.isLiked ? theme.accent : theme.textSecondary}
+                fill={event.isLiked ? theme.accent : "transparent"}
+              />
+            </Pressable>
+            <Pressable
+              onPress={(e) => {
+                e.stopPropagation();
+                setShowLikesModal(true);
+              }}
+            >
+              <ThemedText style={[styles.actionText, { color: theme.textSecondary }]}>
+                {event.likes}
+              </ThemedText>
+            </Pressable>
+          </View>
+          <View style={styles.likeContainer}>
+            <Pressable
+              style={styles.actionButton}
+              onPress={(e) => {
+                e.stopPropagation();
+                onComment();
+              }}
+            >
+              <Feather
+                name="message-circle"
+                size={20}
+                color={theme.textSecondary}
+              />
+            </Pressable>
             <ThemedText style={[styles.actionText, { color: theme.textSecondary }]}>
               {event.comments?.length || 0}
             </ThemedText>
-          </Pressable>
-          <Pressable
-            style={styles.actionButton}
-            onPress={(e) => {
-              e.stopPropagation();
-              onSave();
-            }}
-          >
-            <Feather
-              name="bookmark"
-              size={20}
-              color={event.isSaved ? theme.success : theme.textSecondary}
-              fill={event.isSaved ? theme.success : "transparent"}
-            />
-          </Pressable>
+          </View>
         </View>
       </View>
+
+      <LikesModal
+        visible={showLikesModal}
+        onClose={() => setShowLikesModal(false)}
+        postId={event.id}
+      />
     </View>
   );
 }
@@ -285,6 +290,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.lg,
+  },
+  likeContainer: {
+    alignItems: "center",
+    gap: 2,
   },
   actionButton: {
     flexDirection: "row",

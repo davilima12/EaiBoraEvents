@@ -301,7 +301,7 @@ export const api = {
         });
 
         const data = await response.json();
-        console.log(data[0].comments_chained[0].answers)
+        console.log(data[0])
         if (!response.ok) {
             throw new Error(data.message || "Erro ao buscar posts");
         }

@@ -3,6 +3,7 @@ import { View, StyleSheet, Pressable, Dimensions, PanResponder, FlatList, ViewTo
 import { VideoView, useVideoPlayer } from "expo-video";
 import { Feather } from "@expo/vector-icons";
 import { ThemedText } from "@/components/ThemedText";
+import { LikesModal } from "@/components/LikesModal";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { Event } from "@/types";
@@ -192,6 +193,7 @@ export function ReelCard({ event, isActive, onLike, onComment, onSave, onBusines
   const { theme } = useTheme();
   const [activeVideoIndex, setActiveVideoIndex] = useState(0);
   const [isScreenFocused, setIsScreenFocused] = useState(true);
+  const [showLikesModal, setShowLikesModal] = useState(false);
 
   // Filter only videos
   const videos = event.media?.filter((m) => m.type === "video") || [];
@@ -265,15 +267,17 @@ export function ReelCard({ event, isActive, onLike, onComment, onSave, onBusines
               color={event.isLiked ? theme.accent : "#FFFFFF"}
               fill={event.isLiked ? theme.accent : "transparent"}
             />
+          </Pressable>
+          <Pressable onPress={() => setShowLikesModal(true)}>
             <ThemedText style={styles.actionText}>{event.likes}</ThemedText>
           </Pressable>
 
           <Pressable style={styles.actionButton} onPress={onComment}>
             <Feather name="message-circle" size={32} color="#FFFFFF" />
-            <ThemedText style={styles.actionText}>
-              {event.comments?.length || 0}
-            </ThemedText>
           </Pressable>
+          <ThemedText style={styles.actionText}>
+            {event.comments?.length || 0}
+          </ThemedText>
 
           <Pressable style={styles.actionButton} onPress={onSave}>
             <Feather
@@ -326,6 +330,12 @@ export function ReelCard({ event, isActive, onLike, onComment, onSave, onBusines
           </Pressable>
         </View>
       </View>
+
+      <LikesModal
+        visible={showLikesModal}
+        onClose={() => setShowLikesModal(false)}
+        postId={event.id}
+      />
     </View>
   );
 }
@@ -369,15 +379,12 @@ const styles = StyleSheet.create({
     position: "absolute",
     right: Spacing.lg,
     bottom: 130,
-    gap: Spacing.xl,
+    gap: Spacing.md,
     alignItems: "center",
   },
   actionButton: {
     alignItems: "center",
-    gap: 4,
-
     borderRadius: 30,
-
   },
   actionText: {
     fontSize: 12,
