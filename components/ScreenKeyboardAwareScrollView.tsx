@@ -13,8 +13,9 @@ export function ScreenKeyboardAwareScrollView({
   contentContainerStyle,
   style,
   keyboardShouldPersistTaps = "handled",
+  noPadding = false,
   ...scrollViewProps
-}: KeyboardAwareScrollViewProps) {
+}: KeyboardAwareScrollViewProps & { noPadding?: boolean }) {
   const { theme } = useTheme();
   const { paddingTop, paddingBottom, scrollInsetBottom } = useScreenInsets();
 
@@ -34,7 +35,7 @@ export function ScreenKeyboardAwareScrollView({
             paddingTop,
             paddingBottom,
           },
-          styles.contentContainer,
+          !noPadding && styles.contentContainer,
           contentContainerStyle,
         ]}
         scrollIndicatorInsets={{ bottom: scrollInsetBottom }}
@@ -58,7 +59,7 @@ export function ScreenKeyboardAwareScrollView({
           paddingTop,
           paddingBottom,
         },
-        styles.contentContainer,
+        !noPadding && styles.contentContainer,
         contentContainerStyle,
       ]}
       scrollIndicatorInsets={{ bottom: scrollInsetBottom }}

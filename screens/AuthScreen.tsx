@@ -9,6 +9,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { AccountType } from "@/types";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { api } from "@/services/api";
+import { LoadingLogo } from "@/components/LoadingLogo";
 
 interface State {
   id: number;
@@ -339,6 +340,12 @@ export default function AuthScreen() {
           </Pressable>
         </View>
       </View>
+
+      {loading && (
+        <View style={styles.loadingOverlay}>
+          <LoadingLogo />
+        </View>
+      )}
     </ScreenKeyboardAwareScrollView>
   );
 }
@@ -454,5 +461,16 @@ const styles = StyleSheet.create({
     height: 120,
     marginTop: 15,
     marginLeft: -65,
+  },
+  loadingOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 1000,
   },
 });

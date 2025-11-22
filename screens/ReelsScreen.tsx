@@ -10,6 +10,7 @@ import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
 import { api } from "@/services/api";
 import { Event, EventCategory, ApiPost } from "@/types";
+import { LoadingLogo } from "@/components/LoadingLogo";
 
 const { height } = Dimensions.get("window");
 
@@ -207,7 +208,7 @@ export default function ReelsScreen() {
   if (loading) {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: theme.backgroundRoot }]}>
-        <ThemedText>Carregando reels...</ThemedText>
+        <LoadingLogo text="Carregando reels..." />
       </View>
     );
   }

@@ -12,6 +12,7 @@ import { api } from "@/services/api";
 import { Event, ApiPost, EventCategory } from "@/types";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { VideoPlayer } from "@/components/VideoPlayer";
+import { LoadingLogo } from "@/components/LoadingLogo";
 
 const { width } = Dimensions.get("window");
 
@@ -139,7 +140,7 @@ export default function EventDetailScreen() {
   if (loading) {
     return (
       <View style={[styles.errorContainer, { backgroundColor: theme.backgroundRoot }]}>
-        <ActivityIndicator size="large" color={theme.primary} />
+        <LoadingLogo text="Carregando evento..." />
       </View>
     );
   }
@@ -180,7 +181,7 @@ export default function EventDetailScreen() {
   };
 
   return (
-    <ScreenKeyboardAwareScrollView>
+    <ScreenKeyboardAwareScrollView noPadding>
       {event.media && event.media.length > 0 && event.media[0].type === 'video' ? (
         <VideoPlayer
           uri={event.media[0].uri}

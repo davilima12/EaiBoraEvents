@@ -290,7 +290,7 @@ export const api = {
         return data;
     },
 
-    async getPosts(latitude?: number, longitude?: number): Promise<ApiPost[]> {
+    async getPosts(latitude?: number, longitude?: number, name?: string, typePostId?: number): Promise<ApiPost[]> {
         const token = await getAuthToken();
 
         // Build URL with query parameters if lat/lng provided
@@ -300,6 +300,14 @@ export const api = {
         if (latitude !== undefined && longitude !== undefined) {
             params.append('latitude', latitude.toString());
             params.append('longitude', longitude.toString());
+        }
+
+        if (name) {
+            params.append('name', name);
+        }
+
+        if (typePostId !== undefined) {
+            params.append('type_post_id', typePostId.toString());
         }
 
         if (params.toString()) {

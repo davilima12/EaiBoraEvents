@@ -27,7 +27,7 @@ export function CategoryChip({ category, isSelected, onPress }: CategoryChipProp
     >
       <Feather
         name={category.icon as any}
-        size={16}
+        size={14}
         color={isSelected ? "#FFFFFF" : theme.textSecondary}
       />
       <ThemedText
@@ -48,14 +48,15 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: BorderRadius.full,
     gap: 6,
     marginRight: Spacing.sm,
+    height: 72,
   },
   label: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "500",
   },
 });
