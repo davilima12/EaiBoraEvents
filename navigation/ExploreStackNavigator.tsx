@@ -1,51 +1,32 @@
 import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import ExploreScreen from "@/screens/ExploreScreen";
-import UserProfileScreen from "@/screens/UserProfileScreen";
-import BusinessProfileScreen from "@/screens/BusinessProfileScreen";
+import EventDetailScreen from "@/screens/EventDetailScreen";
+import ProfileScreen from "@/screens/ProfileScreen";
 import { useTheme } from "@/hooks/useTheme";
 import { getCommonScreenOptions } from "./screenOptions";
 
 export type ExploreStackParamList = {
   Explore: undefined;
-  UserProfile: { user: import("@/services/api").UserSearchResult };
-  BusinessProfile: { businessId: string; businessName: string };
+  EventDetail: { eventId: string };
+  Profile: { userId?: string };
 };
 
 const Stack = createNativeStackNavigator<ExploreStackParamList>();
 
-export default function ExploreStackNavigator() {
-  const { theme, isDark } = useTheme();
+export function ExploreStackNavigator() {
+  const { theme } = useTheme();
 
   return (
     <Stack.Navigator
-      screenOptions={getCommonScreenOptions({ theme, isDark, transparent: false })}
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: theme.backgroundRoot },
+      }}
     >
-      <Stack.Screen
-        name="Explore"
-        component={ExploreScreen}
-        options={{
-          title: "Explorar",
-        }}
-      />
-      <Stack.Screen
-        name="UserProfile"
-        component={UserProfileScreen}
-        options={{
-          headerShown: true,
-          title: "Perfil",
-          headerBackTitle: "Voltar",
-        }}
-      />
-      <Stack.Screen
-        name="BusinessProfile"
-        component={BusinessProfileScreen}
-        options={{
-          headerShown: true,
-          title: "Perfil da Empresa",
-          headerBackTitle: "Voltar",
-        }}
-      />
+      <Stack.Screen name="Explore" component={ExploreScreen} />
+      <Stack.Screen name="EventDetail" component={EventDetailScreen} />
+      <Stack.Screen name="Profile" component={ProfileScreen} />
     </Stack.Navigator>
   );
 }

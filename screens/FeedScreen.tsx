@@ -188,7 +188,7 @@ export default function FeedScreen() {
   };
 
   const handleBusinessPress = (businessId: string, businessName: string) => {
-    (navigation as any).navigate("BusinessProfile", { businessId, businessName });
+    (navigation as any).navigate("Profile", { userId: businessId });
   };
 
   const handleCreateEvent = () => {

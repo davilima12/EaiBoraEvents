@@ -237,9 +237,8 @@ export default function EventDetailScreen() {
         <View style={styles.header}>
           <Pressable
             style={styles.businessInfo}
-            onPress={() => (navigation as any).navigate("BusinessProfile", {
-              businessId: event.businessId,
-              businessName: event.businessName
+            onPress={() => (navigation as any).navigate("Profile", {
+              userId: event.businessId
             })}
           >
             <View style={[styles.avatar, { backgroundColor: theme.primary }]}>

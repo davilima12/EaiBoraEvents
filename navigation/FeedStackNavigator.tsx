@@ -3,7 +3,7 @@ import { View, Pressable } from "react-native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useNavigation } from "@react-navigation/native";
 import FeedScreen from "@/screens/FeedScreen";
-import BusinessProfileScreen from "@/screens/BusinessProfileScreen";
+import ProfileScreen from "@/screens/ProfileScreen";
 import NotificationScreen from "@/screens/NotificationScreen";
 import EventDetailScreen from "@/screens/EventDetailScreen";
 import { useTheme } from "@/hooks/useTheme";
@@ -16,7 +16,7 @@ export type FeedStackParamList = {
   Feed: undefined;
 
   Notifications: undefined;
-  BusinessProfile: { businessId: string; businessName: string };
+  Profile: { userId?: string };
   EventDetail: { eventId: string };
 };
 
@@ -49,11 +49,11 @@ export default function FeedStackNavigator() {
         })}
       />
       <Stack.Screen
-        name="BusinessProfile"
-        component={BusinessProfileScreen}
-        options={({ route }) => ({
-          title: route.params.businessName,
-        })}
+        name="Profile"
+        component={ProfileScreen}
+        options={{
+          title: "Perfil",
+        }}
       />
       <Stack.Screen
         name="Notifications"

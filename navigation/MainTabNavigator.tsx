@@ -5,7 +5,7 @@ import { BlurView } from "expo-blur";
 import { Platform, StyleSheet } from "react-native";
 import FeedStackNavigator from "@/navigation/FeedStackNavigator";
 import ReelsStackNavigator from "@/navigation/ReelsStackNavigator";
-import ExploreStackNavigator from "@/navigation/ExploreStackNavigator";
+import { ExploreStackNavigator } from "@/navigation/ExploreStackNavigator";
 import ChatStackNavigator from "@/navigation/ChatStackNavigator";
 import ProfileStackNavigator from "@/navigation/ProfileStackNavigator";
 import { useTheme } from "@/hooks/useTheme";

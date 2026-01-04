@@ -92,21 +92,16 @@ export const api = {
         return data;
     },
 
-    async getUserProfile(): Promise<{
-        id: number;
-        name: string;
-        email: string;
-        user_type_id: number;
-        citie_id: number;
-        state_id: number;
-    }> {
+    async getUserProfile(userId?: number): Promise<any> {
         const token = await getAuthToken();
 
         if (!token) {
             throw new Error("Token não encontrado");
         }
 
-        const response = await fetch(`${API_URL}/user/profile`, {
+        const url = userId ? `${API_URL}/user/profile/${userId}` : `${API_URL}/user/profile`;
+
+        const response = await fetch(url, {
             method: "GET",
             headers: {
                 "Content-Type": "application/json",

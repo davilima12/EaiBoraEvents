@@ -169,7 +169,7 @@ export default function ReelsScreen() {
   };
 
   const handleBusinessPress = (businessId: string, businessName: string) => {
-    (navigation as any).navigate("BusinessProfile", { businessId, businessName });
+    (navigation as any).navigate("Profile", { userId: businessId });
   };
 
   const handleEventPress = (eventId: string) => {
