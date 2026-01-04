@@ -25,13 +25,14 @@ export default function EventDetailScreen() {
   const eventId = (route.params as any)?.eventId;
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isFollowing, setIsFollowing] = useState(false);
 
   useEffect(() => {
     async function loadEvent() {
       if (!user || !eventId) return;
       try {
         const post = await api.getPostById(Number(eventId));
-
+        console.log('user', user)
         // Adapt API post to Event type
         // Map photos/videos
         const media = post.photos.map(p => ({
@@ -113,7 +114,15 @@ export default function EventDetailScreen() {
       }
     }
     loadEvent();
+    loadEvent();
   }, [eventId, user]);
+
+  useEffect(() => {
+    if (user && user.following && event) {
+      const isAlreadyFollowing = user.following.some((u: any) => u.id === Number(event.businessId));
+      setIsFollowing(isAlreadyFollowing);
+    }
+  }, [user, event]);
 
   const handleToggleLike = async () => {
     if (!user || !eventId || !event) return;
@@ -152,6 +161,19 @@ export default function EventDetailScreen() {
       }
     } catch (error) {
       console.error("Error toggling save:", error);
+    }
+  };
+
+  const handleFollow = async () => {
+    if (!event) return;
+    try {
+      // Optimistic toggle
+      setIsFollowing((prev) => !prev);
+      await api.followUser(Number(event.businessId));
+    } catch (error) {
+      console.error("Erro ao seguir/deixar de seguir:", error);
+      // Revert on error
+      setIsFollowing((prev) => !prev);
     }
   };
 
@@ -229,11 +251,16 @@ export default function EventDetailScreen() {
               <ThemedText style={styles.businessName}>
                 {event.businessName}
               </ThemedText>
-              <Pressable style={styles.followButton}>
-                <ThemedText style={[styles.followText, { color: theme.primary }]}>
-                  Seguir
-                </ThemedText>
-              </Pressable>
+              {user && user.id.toString() !== event.businessId && (
+                <Pressable
+                  style={styles.followButton}
+                  onPress={handleFollow}
+                >
+                  <ThemedText style={[styles.followText, { color: theme.primary }]}>
+                    {isFollowing ? "Deixar de seguir" : "Seguir"}
+                  </ThemedText>
+                </Pressable>
+              )}
             </View>
           </Pressable>
           <View style={styles.actions}>

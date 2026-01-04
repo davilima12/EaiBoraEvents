@@ -1,5 +1,5 @@
-import React, { useState, useCallback } from "react";
-import { View, StyleSheet, Image } from "react-native";
+import React, { useState, useCallback, useEffect } from "react";
+import { View, StyleSheet, Image, Pressable } from "react-native";
 import { useRoute, RouteProp, useFocusEffect } from "@react-navigation/native";
 import { ScreenScrollView } from "@/components/ScreenScrollView";
 import { EventCard } from "@/components/EventCard";
@@ -12,6 +12,7 @@ import { database } from "@/services/database";
 import { Event } from "@/types";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { Feather } from "@expo/vector-icons";
+import { api } from "@/services/api";
 
 type BusinessProfileScreenRouteProp = RouteProp<
   { BusinessProfile: { businessId: string; businessName: string } },
@@ -25,6 +26,7 @@ export default function BusinessProfileScreen() {
   const { user } = useAuth();
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isFollowing, setIsFollowing] = useState(false);
 
   const loadBusinessEvents = useCallback(async () => {
     if (!user) return;
@@ -43,103 +45,133 @@ export default function BusinessProfileScreen() {
     useCallback(() => {
       loadBusinessEvents();
     }, [loadBusinessEvents])
+    }, [loadBusinessEvents])
   );
 
-  const handleLike = async (eventId: string) => {
-    if (!user) return;
-    try {
-      const isLiked = await database.toggleLike(eventId, user.id);
-      setEvents((prev) =>
-        prev.map((event) =>
-          event.id === eventId
-            ? {
-              ...event,
-              isLiked,
-              likes: isLiked ? event.likes + 1 : event.likes - 1,
-            }
-            : event
-        )
-      );
-    } catch (error) {
-      console.error("Error toggling like:", error);
-    }
-  };
+useEffect(() => {
+  if (user && user.following) {
+    const isAlreadyFollowing = user.following.some((u: any) => u.id === Number(businessId));
+    setIsFollowing(isAlreadyFollowing);
+  }
+}, [user, businessId]);
 
-  const handleSave = async (eventId: string) => {
-    if (!user) return;
-    try {
-      const isSaved = await database.toggleSave(eventId, user.id);
-      setEvents((prev) =>
-        prev.map((event) =>
-          event.id === eventId ? { ...event, isSaved } : event
-        )
-      );
-    } catch (error) {
-      console.error("Error toggling save:", error);
-    }
-  };
+const handleLike = async (eventId: string) => {
+  if (!user) return;
+  try {
+    const isLiked = await database.toggleLike(eventId, user.id);
+    setEvents((prev) =>
+      prev.map((event) =>
+        event.id === eventId
+          ? {
+            ...event,
+            isLiked,
+            likes: isLiked ? event.likes + 1 : event.likes - 1,
+          }
+          : event
+      )
+    );
+  } catch (error) {
+    console.error("Error toggling like:", error);
+  }
+};
 
-  const handleEventPress = (event: Event) => {
-    // Navigate to event details if needed
-  };
+const handleSave = async (eventId: string) => {
+  if (!user) return;
+  try {
+    const isSaved = await database.toggleSave(eventId, user.id);
+    setEvents((prev) =>
+      prev.map((event) =>
+        event.id === eventId ? { ...event, isSaved } : event
+      )
+    );
+  } catch (error) {
+    console.error("Error toggling save:", error);
+  }
+};
 
-  const handleComment = (event: Event) => {
-    // Navigate to comments modal if needed
-  };
+const handleFollow = async () => {
+  try {
+    setIsFollowing((prev) => !prev);
+    await api.followUser(Number(businessId));
+  } catch (error) {
+    console.error("Error toggling follow:", error);
+    setIsFollowing((prev) => !prev);
+  }
+};
 
-  return (
-    <ScreenScrollView>
-      <ThemedView style={styles.container}>
-        <View style={styles.header}>
-          <View style={[styles.avatar, { backgroundColor: theme.primary }]}>
-            <ThemedText style={styles.avatarText}>
-              {businessName[0]}
+const handleEventPress = (event: Event) => {
+  // Navigate to event details if needed
+};
+
+const handleComment = (event: Event) => {
+  // Navigate to comments modal if needed
+};
+
+return (
+  <ScreenScrollView>
+    <ThemedView style={styles.container}>
+      <View style={styles.header}>
+        <View style={[styles.avatar, { backgroundColor: theme.primary }]}>
+          <ThemedText style={styles.avatarText}>
+            {businessName[0]}
+          </ThemedText>
+        </View>
+        <ThemedText style={styles.businessName}>{businessName}</ThemedText>
+
+        {user && user.id.toString() !== businessId && (
+          <Pressable
+            style={styles.followButton}
+            onPress={handleFollow}
+          >
+            <ThemedText style={[styles.followText, { color: theme.primary }]}>
+              {isFollowing ? "Deixar de seguir" : "Seguir"}
             </ThemedText>
-          </View>
-          <ThemedText style={styles.businessName}>{businessName}</ThemedText>
-          <View style={styles.statsContainer}>
-            <View style={styles.stat}>
-              <ThemedText style={styles.statNumber}>{events.length}</ThemedText>
-              <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>
-                Eventos
-              </ThemedText>
-            </View>
+          </Pressable>
+        )}
+
+        <View style={styles.statsContainer}>
+          <View style={styles.stat}>
+            <ThemedText style={styles.statNumber}>{events.length}</ThemedText>
+            <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>
+              Eventos
+            </ThemedText>
           </View>
         </View>
+      </View>
 
-        <View style={styles.divider} />
+      <View style={styles.divider} />
 
-        <ThemedText style={styles.sectionTitle}>Eventos Publicados</ThemedText>
+      <ThemedText style={styles.sectionTitle}>Eventos Publicados</ThemedText>
 
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ThemedText style={{ color: theme.textSecondary }}>
-              Carregando...
-            </ThemedText>
-          </View>
-        ) : events.length === 0 ? (
-          <EmptyState
-            illustration={require("@/assets/images/illustrations/no_events_nearby_illustration.png")}
-            title="Nenhum evento"
-            description="Esta empresa ainda não publicou eventos."
-          />
-        ) : (
-          <View style={styles.eventsContainer}>
-            {events.map((event) => (
-              <EventCard
-                key={event.id}
-                event={event}
-                onPress={() => handleEventPress(event)}
-                onLike={() => handleLike(event.id)}
-                onSave={() => handleSave(event.id)}
-                onComment={() => handleComment(event)}
-              />
-            ))}
-          </View>
-        )}
-      </ThemedView>
-    </ScreenScrollView>
-  );
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ThemedText style={{ color: theme.textSecondary }}>
+            Carregando...
+          </ThemedText>
+        </View>
+      ) : events.length === 0 ? (
+        <EmptyState
+          illustration={require("@/assets/images/illustrations/no_events_nearby_illustration.png")}
+          title="Nenhum evento"
+          description="Esta empresa ainda não publicou eventos."
+        />
+      ) : (
+        <View style={styles.eventsContainer}>
+          {events.map((event) => (
+            <EventCard
+              key={event.id}
+              event={event}
+              onPress={() => handleEventPress(event)}
+              onLike={() => handleLike(event.id)}
+              onSave={() => handleSave(event.id)}
+              onComment={() => handleComment(event)}
+            />
+          ))}
+        </View>
+      )}
+    </ThemedView>
+  </ScreenScrollView>
+);
 }
 
 const styles = StyleSheet.create({
@@ -202,5 +234,19 @@ const styles = StyleSheet.create({
   eventsContainer: {
     gap: Spacing.md,
     paddingBottom: Spacing.xl,
+  },
+  followButton: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: "transparent", // Or theme.primary if needed
+    marginBottom: Spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  followText: {
+    fontSize: 14,
+    fontWeight: "600",
   },
 });

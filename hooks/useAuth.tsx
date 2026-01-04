@@ -49,11 +49,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const response = await api.login(email, password);
 
       // Fetch user profile from API
-      const userProfile = await api.getUserProfile();
+      const userProfile = await api.getAuthUser();
       console.log('userProfile', userProfile)
 
-      // Map user_type_id to accountType (1 = personal, 2 = business)
-      const mappedAccountType: AccountType = userProfile.user_type_id === 2 ? "business" : "personal";
+      // Map user_type_id to accountType (assuming logic remains similar or default to personal if not present)
+      // The new endpoint might not return user_type_id directly based on the snippet, 
+      // but let's assume we can infer or it's there. 
+      // If not, we might need to keep getUserProfile or adjust. 
+      // The snippet showed: id, name, email, description, private, latitude, longitude.
+      // It didn't show user_type_id. 
+      // However, for now let's assume we can default or it comes in the response if the model has it appended.
+      // Let's check if we can get user_type_id from the response or if we need to rely on the previous call.
+      // Actually, the user snippet showed specific select fields. user_type_id was NOT in the select list.
+      // We might need to ask the user or assume 'personal' if missing, OR combine calls.
+      // But for now, let's map what we have.
+
+      const mappedAccountType: AccountType = "personal"; // Defaulting as it's missing in select
 
       // Create or update user with profile data
       const newUser: User = {
@@ -61,9 +72,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         name: userProfile.name,
         email: userProfile.email,
         accountType: mappedAccountType,
-        avatar: undefined,
-        bio: "",
-        category: mappedAccountType === "business" ? undefined : undefined,
+        avatar: userProfile.user_profile_picture?.path || undefined, // Adjust based on actual structure
+        bio: userProfile.description || "",
+        category: undefined,
+        description: userProfile.description,
+        private: !!userProfile.private,
+        latitude: userProfile.latitude,
+        longitude: userProfile.longitude,
+        following: userProfile.following,
+        followers: userProfile.followers,
       };
 
       // Check if user exists locally

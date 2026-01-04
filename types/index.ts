@@ -17,6 +17,12 @@ export interface User {
   avatar?: string;
   bio?: string;
   category?: string;
+  description?: string;
+  private?: boolean;
+  latitude?: number;
+  longitude?: number;
+  following?: { id: number; name: string; user_profile_picture?: any }[];
+  followers?: { id: number; name: string; user_profile_picture?: any }[];
 }
 
 export interface Event {

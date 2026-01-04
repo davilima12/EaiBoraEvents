@@ -124,6 +124,31 @@ export const api = {
         return data;
     },
 
+    async getAuthUser(): Promise<any> {
+        const token = await getAuthToken();
+
+        if (!token) {
+            throw new Error("Token não encontrado");
+        }
+
+        const response = await fetch(`${API_URL}/user/auth-user`, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+                Authorization: `Bearer ${token}`,
+            },
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || "Erro ao buscar dados do usuário");
+        }
+
+        return data;
+    },
+
     async getStates(): Promise<State[]> {
         const response = await fetch(`${API_URL}/states`, {
             method: "GET",
@@ -477,6 +502,27 @@ export const api = {
 
         if (!response.ok) {
             throw new Error(data.message || "Erro ao buscar usuários");
+        }
+
+        return data;
+    },
+
+    async followUser(followedId: number): Promise<any> {
+        const token = await getAuthToken();
+        const response = await fetch(`${API_URL}/user/follow`, {
+            method: "POST",
+            headers: {
+                Accept: "application/json",
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ followed_id: followedId }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || "Erro ao seguir usuário");
         }
 
         return data;
