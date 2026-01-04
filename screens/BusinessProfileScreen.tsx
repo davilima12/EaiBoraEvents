@@ -53,10 +53,10 @@ export default function BusinessProfileScreen() {
         prev.map((event) =>
           event.id === eventId
             ? {
-                ...event,
-                isLiked,
-                likes: isLiked ? event.likes + 1 : event.likes - 1,
-              }
+              ...event,
+              isLiked,
+              likes: isLiked ? event.likes + 1 : event.likes - 1,
+            }
             : event
         )
       );

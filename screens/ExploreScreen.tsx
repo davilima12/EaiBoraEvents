@@ -262,7 +262,10 @@ export default function ExploreScreen() {
                 <Pressable
                   style={[styles.userCard, { backgroundColor: theme.backgroundSecondary }]}
                   // Navigate to user profile
-                  onPress={() => (navigation as any).navigate("UserProfile", { user: userItem })}
+                  onPress={() => (navigation as any).navigate("BusinessProfile", {
+                    businessId: userItem.id.toString(),
+                    businessName: userItem.name
+                  })}
                 >
                   <View style={styles.userInfo}>
                     {userItem.user_profile_base64 ? (

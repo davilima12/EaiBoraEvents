@@ -9,6 +9,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/hooks/useAuth";
 import { database } from "@/services/database";
 import { api } from "@/services/api";
+import { locationService } from "@/services/location";
 import { Event, ApiPost, EventCategory } from "@/types";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { VideoPlayer } from "@/components/VideoPlayer";
@@ -56,6 +57,24 @@ export default function EventDetailScreen() {
         };
         const category = categoryMap[post.type_post.name] || "other";
 
+        // Calculate distance
+        let calculatedDistance = post.distance || 0;
+        try {
+          const cachedLocation = locationService.getCachedLocation();
+          const location = cachedLocation || await locationService.getCurrentLocation();
+
+          if (location && post.latitude && post.longitude) {
+            calculatedDistance = locationService.calculateDistance(
+              location.latitude,
+              location.longitude,
+              post.latitude,
+              post.longitude
+            );
+          }
+        } catch (e) {
+          console.warn("Error calculating distance:", e);
+        }
+
         const adaptedEvent: Event = {
           id: post.id.toString(),
           title: post.name,
@@ -75,7 +94,7 @@ export default function EventDetailScreen() {
           likes: post.like_post.length,
           isLiked: post.like_post.some((like: any) => like.user_id === Number(user.id)),
           isSaved: false,
-          distance: post.distance || 0,
+          distance: calculatedDistance,
           comments: post.comments_chained.map((c: any) => ({
             id: c.id.toString(),
             userId: c.user_id.toString(),
@@ -194,7 +213,13 @@ export default function EventDetailScreen() {
 
       <View style={styles.content}>
         <View style={styles.header}>
-          <View style={styles.businessInfo}>
+          <Pressable
+            style={styles.businessInfo}
+            onPress={() => (navigation as any).navigate("BusinessProfile", {
+              businessId: event.businessId,
+              businessName: event.businessName
+            })}
+          >
             <View style={[styles.avatar, { backgroundColor: theme.primary }]}>
               <ThemedText style={styles.avatarText}>
                 {event.businessName[0]}
@@ -210,7 +235,7 @@ export default function EventDetailScreen() {
                 </ThemedText>
               </Pressable>
             </View>
-          </View>
+          </Pressable>
           <View style={styles.actions}>
             <Pressable onPress={handleToggleLike}>
               <Feather
