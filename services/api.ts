@@ -41,6 +41,16 @@ interface LoginResponse {
     token: string;
 }
 
+export interface UserSearchResult {
+    id: number;
+    name: string;
+    email: string;
+    user_type_id: number;
+    user_profile_base64?: string;
+    citie_id: number;
+    state_id: number;
+}
+
 // Token management functions
 export const setAuthToken = async (token: string): Promise<void> => {
     await AsyncStorage.setItem(TOKEN_KEY, token);
@@ -453,4 +463,22 @@ export const api = {
         }
     },
 
+    async searchUsers(name: string): Promise<UserSearchResult[]> {
+        const token = await getAuthToken();
+        const response = await fetch(`${API_URL}/user?search=${encodeURIComponent(name)}`, {
+            method: "GET",
+            headers: {
+                Accept: "application/json",
+                Authorization: `Bearer ${token}`,
+            },
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || "Erro ao buscar usuários");
+        }
+
+        return data;
+    },
 };

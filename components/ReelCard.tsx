@@ -154,13 +154,25 @@ const ReelVideoItem = ({ uri, shouldPlay, onScreenPress }: { uri: string; should
 
       {showControls && (
         <View style={styles.controlsOverlay}>
-          <Pressable style={styles.playPauseButton} onPress={togglePlayPause}>
-            <Feather
-              name={player?.playing ? "pause" : "play"}
-              size={48}
-              color="#FFFFFF"
-            />
-          </Pressable>
+          <View style={styles.centerControls}>
+            <Pressable style={styles.muteButtonOverlay} onPress={toggleMute}>
+              <View style={styles.muteButtonContainer}>
+                <Feather
+                  name={isMuted ? "volume-x" : "volume-2"}
+                  size={32}
+                  color="#FFFFFF"
+                />
+              </View>
+            </Pressable>
+
+            <Pressable style={styles.playPauseButton} onPress={togglePlayPause}>
+              <Feather
+                name={player?.playing ? "pause" : "play"}
+                size={48}
+                color="#FFFFFF"
+              />
+            </Pressable>
+          </View>
 
           <View style={styles.controlsBottom}>
             <View
@@ -172,18 +184,6 @@ const ReelVideoItem = ({ uri, shouldPlay, onScreenPress }: { uri: string; should
             </View>
           </View>
         </View>
-      )}
-
-      {showControls && (
-        <Pressable style={styles.muteButtonOverlay} onPress={toggleMute}>
-          <View style={styles.muteButtonContainer}>
-            <Feather
-              name={isMuted ? "volume-x" : "volume-2"}
-              size={32}
-              color="#FFFFFF"
-            />
-          </View>
-        </Pressable>
       )}
     </View>
   );
@@ -450,9 +450,6 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   muteButtonOverlay: {
-    position: 'absolute',
-    top: 100,
-    right: 20,
     backgroundColor: "rgba(0, 0, 0, 0.5)",
     borderRadius: 30,
     padding: 8,
@@ -470,6 +467,10 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0, 0, 0, 0.3)",
     justifyContent: "center",
     alignItems: "center",
+  },
+  centerControls: {
+    alignItems: 'center',
+    gap: 20,
   },
   playPauseButton: {
     backgroundColor: "rgba(0, 0, 0, 0.6)",

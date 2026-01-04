@@ -169,24 +169,26 @@ export function VideoPlayer({ uri, thumbnail, style, shouldPlay = true }: VideoP
       {/* Controls overlay - shows on tap */}
       {showControls && (
         <View style={styles.controlsOverlay}>
-          <Pressable style={styles.playPauseButton} onPress={togglePlayPause}>
-            <Feather
-              name={player?.playing ? "pause" : "play"}
-              size={48}
-              color="#FFFFFF"
-            />
-          </Pressable>
+          <View style={styles.centerControls}>
+            {/* Mute button - only visible when controls are shown */}
+            <Pressable style={styles.muteButton} onPress={toggleMute}>
+              <View style={styles.muteButtonContainer}>
+                <Feather
+                  name={isMuted ? "volume-x" : "volume-2"}
+                  size={24}
+                  color="#FFFFFF"
+                />
+              </View>
+            </Pressable>
 
-          {/* Mute button - only visible when controls are shown */}
-          <Pressable style={styles.muteButton} onPress={toggleMute}>
-            <View style={styles.muteButtonContainer}>
+            <Pressable style={styles.playPauseButton} onPress={togglePlayPause}>
               <Feather
-                name={isMuted ? "volume-x" : "volume-2"}
-                size={24}
+                name={player?.playing ? "pause" : "play"}
+                size={48}
                 color="#FFFFFF"
               />
-            </View>
-          </Pressable>
+            </Pressable>
+          </View>
         </View>
       )}
     </View>
@@ -222,9 +224,6 @@ const styles = StyleSheet.create({
     height: "100%",
   },
   muteButton: {
-    position: "absolute",
-    top: 40,
-    right: 12,
     backgroundColor: "rgba(0, 0, 0, 0.5)",
     borderRadius: 20,
     padding: 8,
@@ -250,6 +249,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     pointerEvents: "box-none",
+  },
+  centerControls: {
+    alignItems: 'center',
+    gap: 20,
   },
   playPauseButton: {
     backgroundColor: "rgba(0, 0, 0, 0.6)",
