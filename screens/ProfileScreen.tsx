@@ -248,16 +248,32 @@ export default function ProfileScreen() {
             </Pressable>
           </View>
 
-          {/* Follow Button (Public Mode Only) */}
+          {/* Follow and Message Buttons (Public Mode Only) */}
           {!isCurrentUser && authUser && (
-            <Pressable
-              style={[styles.followButton, { borderColor: theme.primary, backgroundColor: isFollowing ? 'transparent' : theme.primary }]}
-              onPress={handleFollow}
-            >
-              <ThemedText style={[styles.followText, { color: isFollowing ? theme.primary : '#FFF' }]}>
-                {isFollowing ? "Deixar de seguir" : "Seguir"}
-              </ThemedText>
-            </Pressable>
+            <View style={{ flexDirection: 'row', gap: Spacing.md }}>
+              <Pressable
+                style={[styles.followButton, { borderColor: theme.primary, backgroundColor: isFollowing ? 'transparent' : theme.primary }]}
+                onPress={handleFollow}
+              >
+                <ThemedText style={[styles.followText, { color: isFollowing ? theme.primary : '#FFF' }]}>
+                  {isFollowing ? "Deixar de seguir" : "Seguir"}
+                </ThemedText>
+              </Pressable>
+
+              <Pressable
+                style={[styles.followButton, { borderColor: theme.primary, backgroundColor: 'transparent' }]}
+                onPress={() => {
+                  (navigation as any).navigate('ChatTab', {
+                    screen: 'ChatDetail',
+                    params: { contactId: userId, contactName: displayName }
+                  });
+                }}
+              >
+                <ThemedText style={[styles.followText, { color: theme.primary }]}>
+                  Mensagem
+                </ThemedText>
+              </Pressable>
+            </View>
           )}
         </View>
 

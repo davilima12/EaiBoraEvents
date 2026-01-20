@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
 import { database } from "@/services/database";
+import { api } from "@/services/api";
 import { Chat } from "@/types";
 import { Spacing, BorderRadius } from "@/constants/theme";
 
@@ -22,8 +23,22 @@ export default function ChatListScreen() {
   const loadChats = useCallback(async () => {
     if (!user) return;
     try {
-      const data = await database.getChats(user.id);
-      setChats(data);
+      const data = await api.getChats();
+      // Adapt API response to Chat type
+      // Assuming API returns a list of chats with contact info and last message
+      console.log('chats')
+      const adaptedChats: Chat[] = data.map((chat: any) => ({
+        id: chat.id?.toString() || Math.random().toString(), // Use chat ID or generate one
+        contactId: chat.contact_id?.toString() || chat.user_id?.toString(), // Adjust based on actual API response
+        contactName: chat.contact_name || chat.name || "Usuário",
+        contactAvatar: chat.contact_avatar || chat.user_profile_picture,
+        lastMessage: chat.last_message || chat.message || "",
+        lastMessageTime: chat.updated_at || chat.created_at || new Date().toISOString(),
+        unreadCount: chat.unread_count || 0,
+        timestamp: chat.updated_at || chat.created_at || new Date().toISOString(), // Add timestamp
+        isBusinessContact: false, // Default to false or derive from data if available
+      }));
+      setChats(adaptedChats);
     } catch (error) {
       console.error("Error loading chats:", error);
     }

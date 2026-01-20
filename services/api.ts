@@ -522,4 +522,92 @@ export const api = {
 
         return data;
     },
+    async sendMessage(recipientId: number, message: string): Promise<any> {
+        const token = await getAuthToken();
+        const authUser = await api.getAuthUser();
+
+        const response = await fetch(`${API_URL}/message/broadcast-event`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+                Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+                recipient_id: recipientId,
+                message,
+                sender_id: authUser.id,
+            }),
+        });
+
+        const text = await response.text();
+        const data = text ? JSON.parse(text) : {};
+
+        if (!response.ok) {
+            throw new Error(data.message || "Erro ao enviar mensagem");
+        }
+        return data;
+    },
+
+    async sendTyping(recipientId: number): Promise<any> {
+        const token = await getAuthToken();
+        const authUser = await api.getAuthUser();
+
+        const response = await fetch(`${API_URL}/message/broadcast-typing-event`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+                Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+                recipient_id: recipientId,
+                sender_id: authUser.id,
+            }),
+        });
+
+        const text = await response.text();
+        const data = text ? JSON.parse(text) : {};
+
+        if (!response.ok) {
+            throw new Error(data.message || "Erro ao enviar status digitando");
+        }
+        return data;
+    },
+
+    async getMessages(recipientId: number): Promise<any[]> {
+        const token = await getAuthToken();
+        const authUser = await api.getAuthUser();
+
+        const response = await fetch(`${API_URL}/message?sender_id=${authUser.id}&recipient_id=${recipientId}`, {
+            method: "GET",
+            headers: {
+                Accept: "application/json",
+                Authorization: `Bearer ${token}`,
+            },
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.message || "Erro ao buscar mensagens");
+        }
+        return data;
+    },
+
+    async getChats(): Promise<any[]> {
+        const token = await getAuthToken();
+        const response = await fetch(`${API_URL}/message/chats-auth-user`, {
+            method: "GET",
+            headers: {
+                Accept: "application/json",
+                Authorization: `Bearer ${token}`,
+            },
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.message || "Erro ao buscar conversas");
+        }
+        return data;
+    },
 };

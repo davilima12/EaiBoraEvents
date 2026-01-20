@@ -27,7 +27,7 @@ export default function ChatStackNavigator() {
         options={{
           title: "Mensagens",
           headerRight: () => (
-            <Pressable onPress={() => {}}>
+            <Pressable onPress={() => { }}>
               <Feather name="edit" size={24} color={theme.text} />
             </Pressable>
           ),
@@ -39,7 +39,7 @@ export default function ChatStackNavigator() {
         options={({ route }) => ({
           title: route.params.contactName,
           headerRight: () => (
-            <Pressable onPress={() => {}}>
+            <Pressable onPress={() => { }}>
               <Feather name="more-vertical" size={24} color={theme.text} />
             </Pressable>
           ),
