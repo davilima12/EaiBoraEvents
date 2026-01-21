@@ -155,22 +155,30 @@ const ReelVideoItem = ({ uri, shouldPlay, onScreenPress }: { uri: string; should
       {showControls && (
         <View style={styles.controlsOverlay}>
           <View style={styles.centerControls}>
-            <Pressable style={styles.muteButtonOverlay} onPress={toggleMute}>
-              <View style={styles.muteButtonContainer}>
+            <Pressable 
+              style={styles.playPauseButton} 
+              onPress={togglePlayPause}
+            >
+              <View style={styles.playPauseIconContainer}>
                 <Feather
-                  name={isMuted ? "volume-x" : "volume-2"}
+                  name={player?.playing ? "pause" : "play"}
                   size={32}
                   color="#FFFFFF"
                 />
               </View>
             </Pressable>
 
-            <Pressable style={styles.playPauseButton} onPress={togglePlayPause}>
-              <Feather
-                name={player?.playing ? "pause" : "play"}
-                size={48}
-                color="#FFFFFF"
-              />
+            <Pressable 
+              style={styles.muteButton} 
+              onPress={toggleMute}
+            >
+              <View style={styles.muteButtonContainer}>
+                <Feather
+                  name={isMuted ? "volume-x" : "volume-2"}
+                  size={20}
+                  color="#FFFFFF"
+                />
+              </View>
             </Pressable>
           </View>
 
@@ -446,13 +454,27 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
   },
-  muteButtonContainer: {
-    position: "relative",
+  muteButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(0, 0, 0, 0.65)",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
   },
-  muteButtonOverlay: {
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    borderRadius: 30,
-    padding: 8,
+  muteButtonContainer: {
+    justifyContent: "center",
+    alignItems: "center",
   },
   mutedIndicator: {
     position: "absolute",
@@ -464,18 +486,37 @@ const styles = StyleSheet.create({
   },
   controlsOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
+    pointerEvents: "box-none",
     justifyContent: "center",
     alignItems: "center",
   },
   centerControls: {
-    alignItems: 'center',
+    alignItems: "center",
     gap: 20,
   },
   playPauseButton: {
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    width: 80,
+    height: 80,
     borderRadius: 40,
-    padding: 16,
+    backgroundColor: "rgba(0, 0, 0, 0.75)",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
+    elevation: 8,
+    borderWidth: 2,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+  },
+  playPauseIconContainer: {
+    marginLeft: 4, // Slight offset for play icon to appear centered
+    justifyContent: "center",
+    alignItems: "center",
   },
   controlsBottom: {
     position: "absolute",

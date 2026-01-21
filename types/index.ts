@@ -108,6 +108,7 @@ export interface PostType {
 export interface CreateEventPayload {
   photos: string[];
   type_post_id: number;
+  type: "post" | "reels";
   address: string;
   zip_code: string;
   neighborhood: string;
@@ -160,6 +161,7 @@ export interface ApiPost {
   end_event: string;
   latitude: number | null;
   longitude: number | null;
+  type?: "post" | "reels";
   user: {
     id: number;
     name: string;

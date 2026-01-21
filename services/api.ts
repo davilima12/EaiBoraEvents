@@ -289,6 +289,7 @@ export const api = {
 
         // Add other fields
         formData.append('type_post_id', payload.type_post_id.toString());
+        formData.append('type', payload.type);
         formData.append('address', payload.address);
         formData.append('zip_code', payload.zip_code);
         formData.append('neighborhood', payload.neighborhood);

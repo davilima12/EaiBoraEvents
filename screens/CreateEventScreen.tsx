@@ -28,6 +28,7 @@ export default function CreateEventScreen() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
+  const [contentType, setContentType] = useState<"post" | "reels">("post");
 
   // Category
   const [postTypes, setPostTypes] = useState<PostType[]>([]);
@@ -138,17 +139,38 @@ export default function CreateEventScreen() {
     }
   };
 
+  // Helper function to check if URI is a video
+  const isVideo = (uri: string): boolean => {
+    return uri.toLowerCase().match(/\.(mp4|mov|avi|mkv|webm|m4v)$/i) !== null;
+  };
+
   const handlePickImages = async () => {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== "granted") {
         Alert.alert(
           "Permissão necessária",
-          "Precisamos de permissão para acessar suas fotos."
+          "Precisamos de permissão para acessar suas fotos e vídeos."
         );
         return;
       }
 
+      // Para reels: apenas 1 vídeo (permite substituir)
+      if (contentType === "reels") {
+        const result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: 'videos' as any,
+          allowsMultipleSelection: false,
+          quality: 0.8,
+        });
+
+        if (!result.canceled && result.assets && result.assets.length > 0) {
+          // Substitui o vídeo atual por um novo
+          setSelectedImages([result.assets[0].uri]);
+        }
+        return;
+      }
+
+      // Para post: foto OU vídeo, mas não ambos
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images', 'videos'] as any,
         allowsMultipleSelection: true,
@@ -157,7 +179,22 @@ export default function CreateEventScreen() {
 
       if (!result.canceled && result.assets) {
         const newUris = result.assets.map((asset) => asset.uri);
-        setSelectedImages((prev) => [...prev, ...newUris]);
+        
+        // Verificar se já há mídia selecionada
+        if (selectedImages.length > 0) {
+          const existingIsVideo = isVideo(selectedImages[0]);
+          const newIsVideo = isVideo(newUris[0]);
+          
+          // Se tipo diferente, substituir
+          if (existingIsVideo !== newIsVideo) {
+            setSelectedImages(newUris);
+          } else {
+            // Mesmo tipo, adicionar
+            setSelectedImages((prev) => [...prev, ...newUris]);
+          }
+        } else {
+          setSelectedImages(newUris);
+        }
       }
     } catch (error) {
       console.error("Error picking images:", error);
@@ -180,6 +217,27 @@ export default function CreateEventScreen() {
     if (selectedImages.length === 0) {
       Alert.alert("Mídia necessária", "Por favor, adicione pelo menos uma foto ou vídeo do evento.");
       return;
+    }
+
+    // Validação específica por tipo
+    if (contentType === "reels") {
+      if (selectedImages.length > 1) {
+        Alert.alert("Reels", "Reels deve conter apenas 1 vídeo.");
+        return;
+      }
+      if (!isVideo(selectedImages[0])) {
+        Alert.alert("Reels", "Reels deve ser um vídeo.");
+        return;
+      }
+    } else {
+      // Post: verificar se tem fotos e vídeos misturados
+      const hasVideo = selectedImages.some(uri => isVideo(uri));
+      const hasImage = selectedImages.some(uri => !isVideo(uri));
+      
+      if (hasVideo && hasImage) {
+        Alert.alert("Post", "Um post não pode conter fotos e vídeos ao mesmo tempo. Selecione apenas fotos ou apenas vídeos.");
+        return;
+      }
     }
 
     if (!address.trim()) {
@@ -217,6 +275,7 @@ export default function CreateEventScreen() {
       const payload = {
         photos: selectedImages,
         type_post_id: selectedPostTypeId,
+        type: contentType,
         address: address.trim(),
         zip_code: zipCode.trim(),
         neighborhood: neighborhood.trim(),
@@ -255,9 +314,78 @@ export default function CreateEventScreen() {
   return (
     <ScreenKeyboardAwareScrollView>
       <View style={styles.container}>
+        {/* Content Type Tabs */}
+        <View style={styles.section}>
+          <ThemedText style={styles.label}>Tipo de Conteúdo *</ThemedText>
+          <View style={styles.tabsContainer}>
+            <Pressable
+              style={[
+                styles.tab,
+                contentType === "post" && { backgroundColor: theme.primary, borderColor: theme.primary }
+              ]}
+              onPress={() => {
+                setContentType("post");
+                // Limpar seleção ao mudar de tipo
+                setSelectedImages([]);
+              }}
+            >
+              <Feather 
+                name="image" 
+                size={18} 
+                color={contentType === "post" ? "#FFFFFF" : theme.textSecondary} 
+              />
+              <ThemedText 
+                style={[
+                  styles.tabText,
+                  { color: contentType === "post" ? "#FFFFFF" : theme.textSecondary }
+                ]}
+              >
+                Post
+              </ThemedText>
+            </Pressable>
+            <Pressable
+              style={[
+                styles.tab,
+                contentType === "reels" && { backgroundColor: theme.primary, borderColor: theme.primary }
+              ]}
+              onPress={() => {
+                setContentType("reels");
+                // Limpar seleção ao mudar para reels
+                setSelectedImages([]);
+              }}
+            >
+              <Feather 
+                name="video" 
+                size={18} 
+                color={contentType === "reels" ? "#FFFFFF" : theme.textSecondary} 
+              />
+              <ThemedText 
+                style={[
+                  styles.tabText,
+                  { color: contentType === "reels" ? "#FFFFFF" : theme.textSecondary }
+                ]}
+              >
+                Reels
+              </ThemedText>
+            </Pressable>
+          </View>
+        </View>
+
         {/* Photos Section */}
         <View style={styles.section}>
-          <ThemedText style={styles.label}>Fotos do Evento *</ThemedText>
+          <ThemedText style={styles.label}>
+            {contentType === "reels" ? "Vídeo do Evento *" : "Fotos/Vídeos do Evento *"}
+          </ThemedText>
+          {contentType === "reels" && (
+            <ThemedText style={[styles.hint, { color: theme.textSecondary }]}>
+              Reels deve conter apenas 1 vídeo
+            </ThemedText>
+          )}
+          {contentType === "post" && (
+            <ThemedText style={[styles.hint, { color: theme.textSecondary }]}>
+              Selecione apenas fotos OU apenas vídeos (não ambos)
+            </ThemedText>
+          )}
           <View style={styles.uploadSection}>
             {selectedImages.length > 0 ? (
               <View>
@@ -268,7 +396,10 @@ export default function CreateEventScreen() {
                 </ScrollView>
                 <Pressable style={styles.changeImageButton} onPress={handlePickImages}>
                   <ThemedText style={[styles.changeImageText, { color: theme.primary }]}>
-                    Alterar Fotos ({selectedImages.length})
+                    {contentType === "reels" 
+                      ? "Alterar Vídeo" 
+                      : `Alterar ${selectedImages.some(uri => isVideo(uri)) ? 'Vídeos' : 'Fotos'} (${selectedImages.length})`
+                    }
                   </ThemedText>
                 </Pressable>
               </View>
@@ -277,9 +408,16 @@ export default function CreateEventScreen() {
                 style={[styles.uploadBox, { backgroundColor: theme.backgroundSecondary }]}
                 onPress={handlePickImages}
               >
-                <Feather name="image" size={32} color={theme.textSecondary} />
+                <Feather 
+                  name={contentType === "reels" ? "video" : "image"} 
+                  size={32} 
+                  color={theme.textSecondary} 
+                />
                 <ThemedText style={[styles.uploadText, { color: theme.textSecondary }]}>
-                  Adicionar fotos do evento
+                  {contentType === "reels" 
+                    ? "Adicionar vídeo do evento" 
+                    : "Adicionar fotos ou vídeos do evento"
+                  }
                 </ThemedText>
               </Pressable>
             )}
@@ -689,5 +827,32 @@ const styles = StyleSheet.create({
   cancelText: {
     fontSize: 16,
     fontWeight: "600",
+  },
+  tabsContainer: {
+    flexDirection: "row",
+    gap: Spacing.md,
+    marginTop: Spacing.sm,
+  },
+  tab: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Spacing.xs,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.xs,
+    borderWidth: 2,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    backgroundColor: "transparent",
+  },
+  tabText: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  hint: {
+    fontSize: 12,
+    marginTop: Spacing.xs,
+    marginBottom: Spacing.sm,
   },
 });

@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { StyleSheet, View, ActivityIndicator } from "react-native";
+import { StyleSheet, View, ActivityIndicator, Platform } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
+import * as SystemUI from "expo-system-ui";
 
 import RootNavigator from "@/navigation/RootNavigator";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -25,6 +26,12 @@ export default function App() {
         setDbReady(true);
       }
     }
+    
+    // Configurar barra de navegação do sistema Android para modo escuro
+    if (Platform.OS === "android") {
+      SystemUI.setBackgroundColorAsync("#000000");
+    }
+    
     initDatabase();
   }, []);
 
@@ -46,7 +53,7 @@ export default function App() {
                 <RootNavigator />
               </NavigationContainer>
             </AuthProvider>
-            <StatusBar style="auto" />
+            <StatusBar style="light" />
           </KeyboardProvider>
         </GestureHandlerRootView>
       </SafeAreaProvider>

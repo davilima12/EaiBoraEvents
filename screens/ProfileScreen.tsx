@@ -1,9 +1,10 @@
 import React, { useState, useCallback, useEffect } from "react";
-import { View, StyleSheet, Pressable, ActivityIndicator, Modal, FlatList } from "react-native";
+import { View, StyleSheet, Pressable, ActivityIndicator, Modal, FlatList, Image, Dimensions } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useFocusEffect, useRoute, RouteProp, useNavigation } from "@react-navigation/native";
 import { ScreenScrollView } from "@/components/ScreenScrollView";
 import { ThemedText } from "@/components/ThemedText";
+import { VideoPlayer } from "@/components/VideoPlayer";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
 import { database } from "@/services/database";
@@ -11,6 +12,7 @@ import { api } from "@/services/api";
 import { Event } from "@/types";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { EventCard } from "@/components/EventCard";
+import { EventThumbnail } from "@/components/EventThumbnail";
 import { EmptyState } from "@/components/EmptyState";
 
 type ProfileScreenRouteProp = RouteProp<
@@ -46,6 +48,8 @@ export default function ProfileScreen() {
   // State for Modals
   const [showFollowers, setShowFollowers] = useState(false);
   const [showFollowing, setShowFollowing] = useState(false);
+  const [showPostsCarousel, setShowPostsCarousel] = useState(false);
+  const [selectedPostIndex, setSelectedPostIndex] = useState(0);
 
   // Initialize Follow State
   useEffect(() => {
@@ -70,10 +74,26 @@ export default function ProfileScreen() {
       const posts = data.post || [];
       if (Array.isArray(posts)) {
         const adaptedEvents: Event[] = posts.map((post: any) => {
-          const media = post.photos ? post.photos.map((p: any) => ({
-            type: p.type,
-            uri: p.path_photo
-          })) : [];
+          const media = post.photos ? post.photos.map((p: any) => {
+            // Garantir que a URI tenha a URL base se necessário
+            let uri = p.path_photo;
+            if (uri && !uri.startsWith('http')) {
+              // Adicionar caminho de storage se necessário
+              if (uri.startsWith('/storage/') || uri.startsWith('storage/')) {
+                uri = `http://192.168.15.3:8000${uri.startsWith('/') ? '' : '/'}${uri}`;
+              } else {
+                uri = `http://192.168.15.3:8000/storage/${uri.startsWith('/') ? uri.substring(1) : uri}`;
+              }
+            }
+            return {
+              type: p.type,
+              uri: uri
+            };
+          }) : [];
+
+          // Separar imagens e vídeos para melhor controle
+          const images = media.filter((m: any) => m.type === 'image').map((m: any) => m.uri);
+          const videos = media.filter((m: any) => m.type === 'video');
 
           return {
             id: post.id.toString(),
@@ -82,7 +102,7 @@ export default function ProfileScreen() {
             businessId: post.user_id ? post.user_id.toString() : (data.id ? data.id.toString() : ""),
             businessName: data.name || "",
             businessAvatar: data.user_profile_picture || undefined,
-            images: media.length > 0 ? [media[0].uri] : [],
+            images: images.length > 0 ? images : (videos.length > 0 ? [videos[0].uri] : []), // Usar primeira imagem ou primeira mídia como fallback
             media: media,
             date: post.start_event,
             location: {
@@ -360,6 +380,76 @@ export default function ProfileScreen() {
           </View>
         </Modal>
 
+        {/* Modal for Posts Carousel */}
+        <Modal
+          visible={showPostsCarousel}
+          animationType="fade"
+          transparent={false}
+          onRequestClose={() => setShowPostsCarousel(false)}
+        >
+          <View style={[styles.carouselModalContainer, { backgroundColor: "#000000" }]}>
+            <Pressable 
+              style={styles.carouselCloseArea}
+              onPress={() => setShowPostsCarousel(false)}
+            >
+              <View style={styles.carouselCloseButton}>
+                <Feather name="x" size={24} color="#FFFFFF" />
+              </View>
+            </Pressable>
+            
+            <FlatList
+              data={displayEvents}
+              pagingEnabled
+              showsVerticalScrollIndicator={false}
+              snapToInterval={Dimensions.get("window").height}
+              snapToAlignment="start"
+              decelerationRate="fast"
+              initialScrollIndex={selectedPostIndex}
+              getItemLayout={(data, index) => ({
+                length: Dimensions.get("window").height,
+                offset: Dimensions.get("window").height * index,
+                index,
+              })}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item, index }) => {
+                const screenWidth = Dimensions.get("window").width;
+                const screenHeight = Dimensions.get("window").height;
+                const activeMedia = item.media && item.media.length > 0 ? item.media[0] : null;
+                
+                return (
+                  <View style={[styles.carouselItem, { width: screenWidth, height: screenHeight }]}>
+                    {activeMedia ? (
+                      activeMedia.type === 'video' ? (
+                        <VideoPlayer
+                          uri={activeMedia.uri}
+                          style={styles.carouselMedia}
+                          shouldPlay={index === selectedPostIndex}
+                        />
+                      ) : (
+                        <Image 
+                          source={{ uri: activeMedia.uri }} 
+                          style={styles.carouselMedia}
+                          resizeMode="contain"
+                        />
+                      )
+                    ) : (
+                      <View style={[styles.carouselPlaceholder, { backgroundColor: theme.backgroundSecondary }]}>
+                        <Feather name="image" size={48} color={theme.textSecondary} />
+                      </View>
+                    )}
+                  </View>
+                );
+              }}
+              onViewableItemsChanged={({ viewableItems }) => {
+                if (viewableItems.length > 0 && viewableItems[0].index !== null) {
+                  setSelectedPostIndex(viewableItems[0].index);
+                }
+              }}
+              viewabilityConfig={{ itemVisiblePercentThreshold: 50 }}
+            />
+          </View>
+        </Modal>
+
         {!showFollowers && !showFollowing && (
           <>
             {/* Tabs (Private Mode) or Section Title (Public Mode) */}
@@ -431,18 +521,30 @@ export default function ProfileScreen() {
                     </ThemedText>
                   </View>
                 ) : (
-                  <View style={{ gap: Spacing.md }}>
-                    {displayEvents.map((event) => (
-                      <EventCard
-                        key={event.id}
-                        event={event}
-                        onPress={() => { }} // Navigate to detail
-                        onLike={() => handleLike(event.id)}
-                        onSave={() => handleSave(event.id)}
-                        onComment={() => { }}
-                      />
-                    ))}
-                  </View>
+                  <FlatList
+                    key={`thumbnails-${showPostsCarousel}`}
+                    data={displayEvents}
+                    numColumns={3}
+                    scrollEnabled={true}
+                    nestedScrollEnabled={true}
+                    showsVerticalScrollIndicator={false}
+                    columnWrapperStyle={styles.gridRow}
+                    contentContainerStyle={styles.gridContainer}
+                    keyExtractor={(item) => item.id}
+                    renderItem={({ item }) => {
+                      return (
+                        <EventThumbnail
+                          key={`thumbnail-${item.id}-${showPostsCarousel}`}
+                          event={item}
+                          onPress={() => {
+                            const index = displayEvents.findIndex(e => e.id === item.id);
+                            setSelectedPostIndex(index);
+                            setShowPostsCarousel(true);
+                          }}
+                        />
+                      );
+                    }}
+                  />
                 )}
               </View>
             )}
@@ -525,18 +627,44 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   gridContainer: {
-    minHeight: 200,
+    paddingTop: Spacing.sm,
   },
-  grid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.md,
+  gridRow: {
+    justifyContent: "flex-start",
+    marginBottom: Spacing.sm,
+    gap: Spacing.sm,
+    paddingHorizontal: 0,
   },
-  gridItem: {
-    width: "31%",
-    aspectRatio: 1,
-    borderRadius: BorderRadius.xs,
-    padding: Spacing.sm,
+  carouselModalContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  carouselCloseArea: {
+    position: "absolute",
+    top: 50,
+    right: Spacing.lg,
+    zIndex: 10,
+  },
+  carouselCloseButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  carouselItem: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  carouselMedia: {
+    width: "100%",
+    height: "100%",
+  },
+  carouselPlaceholder: {
+    width: "100%",
+    height: "100%",
     justifyContent: "center",
     alignItems: "center",
   },

@@ -4,12 +4,14 @@ import { getFocusedRouteNameFromRoute } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import { Platform, StyleSheet } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import FeedStackNavigator from "@/navigation/FeedStackNavigator";
 import ReelsStackNavigator from "@/navigation/ReelsStackNavigator";
 import { ExploreStackNavigator } from "@/navigation/ExploreStackNavigator";
 import ChatStackNavigator from "@/navigation/ChatStackNavigator";
 import ProfileStackNavigator from "@/navigation/ProfileStackNavigator";
 import { useTheme } from "@/hooks/useTheme";
+import { Spacing } from "@/constants/theme";
 
 export type MainTabParamList = {
   FeedTab: undefined;
@@ -23,6 +25,7 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 
 export default function MainTabNavigator() {
   const { theme, isDark } = useTheme();
+  const insets = useSafeAreaInsets();
 
   return (
     <Tab.Navigator
@@ -34,10 +37,23 @@ export default function MainTabNavigator() {
           position: "absolute",
           backgroundColor: Platform.select({
             ios: "transparent",
-            android: theme.backgroundRoot,
+            android: "#000000", // Forçar preto no Android
           }),
           borderTopWidth: 0,
+          borderTopColor: "transparent",
           elevation: 0,
+          height: Platform.select({
+            android: 60 + Math.max(insets.bottom - 8, 0), // Adicionar espaço para botões do sistema
+            ios: 60 + insets.bottom, // Altura com espaço para safe area no iOS
+          }),
+          paddingBottom: Platform.select({
+            android: Math.max(insets.bottom - 8, Spacing.sm), // Padding para evitar sobreposição
+            ios: insets.bottom + Spacing.sm, // Padding para safe area no iOS
+          }),
+          paddingTop: Platform.select({
+            android: Spacing.sm,
+            ios: Spacing.sm,
+          }),
         },
         tabBarBackground: () =>
           Platform.OS === "ios" ? (
@@ -114,10 +130,23 @@ export default function MainTabNavigator() {
                 position: "absolute",
                 backgroundColor: Platform.select({
                   ios: "transparent",
-                  android: theme.backgroundRoot,
+                  android: "#000000", // Forçar preto no Android
                 }),
                 borderTopWidth: 0,
+                borderTopColor: "transparent",
                 elevation: 0,
+                height: Platform.select({
+                  android: 60 + Math.max(insets.bottom - 8, 0), // Adicionar espaço para botões do sistema
+                  ios: 60 + insets.bottom, // Altura com espaço para safe area no iOS
+                }),
+                paddingBottom: Platform.select({
+                  android: Math.max(insets.bottom - 8, Spacing.sm), // Padding para evitar sobreposição
+                  ios: insets.bottom + Spacing.sm, // Padding para safe area no iOS
+                }),
+                paddingTop: Platform.select({
+                  android: Spacing.sm,
+                  ios: Spacing.sm,
+                }),
               };
             })(route),
           };

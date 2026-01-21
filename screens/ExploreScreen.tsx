@@ -179,7 +179,7 @@ export default function ExploreScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <View style={[styles.searchSection, { paddingTop: Spacing.xl }]}>
+      <View style={[styles.searchSection, { paddingTop: insets.top + Spacing.xl + Spacing.xl + Spacing.lg+ Spacing.lg  }]}>
         <View style={[styles.searchBar, { backgroundColor: theme.backgroundSecondary }]}>
           <Feather name="search" size={20} color={theme.textSecondary} />
           <TextInput
@@ -247,11 +247,12 @@ export default function ExploreScreen() {
           data={getDisplayData() as any}
           key={searchType === 'events' ? 'events-grid' : 'users-list'} // Force re-render on switch
           numColumns={searchType === 'events' ? 2 : 1}
-          style={{ marginTop: searchType === 'events' ? -300 : 0 }} // Adjust based on layout
           contentContainerStyle={[
             styles.gridContainer,
-            { paddingBottom: insets.bottom + Spacing.xl },
-            searchType === 'people' && { paddingTop: Spacing.md }
+            { 
+              paddingBottom: insets.bottom + Spacing.xl,
+              paddingTop: Spacing.md
+            }
           ]}
           columnWrapperStyle={searchType === 'events' ? styles.row : undefined}
           keyExtractor={(item) => item.id.toString()}
@@ -288,17 +289,22 @@ export default function ExploreScreen() {
               <Pressable
                 style={[styles.gridItem, { backgroundColor: theme.backgroundDefault }]}
                 onPress={() => (navigation as any).navigate("EventDetail", { eventId: eventItem.id })}
+                onLongPress={() => {}} // Desabilita menu de contexto
               >
                 {eventItem.media && eventItem.media.length > 0 && eventItem.media[0].type === 'video' ? (
                   <VideoPlayer
                     uri={eventItem.media[0].uri}
                     style={styles.gridImage}
                     shouldPlay={false}
+                    hideControls={true}
                   />
                 ) : (
-                  <Image source={{ uri: eventItem.images[0] }} style={styles.gridImage} />
+                  <Image 
+                    source={{ uri: eventItem.images[0] }} 
+                    style={styles.gridImage}
+                  />
                 )}
-                <View style={styles.gridOverlay}>
+                <View style={styles.gridOverlay} pointerEvents="box-none">
                   <View style={[styles.dateBadge, { backgroundColor: theme.primary }]}>
                     <ThemedText style={styles.dateBadgeText}>
                       {formatDate(eventItem.date)}
@@ -360,6 +366,7 @@ const styles = StyleSheet.create({
   },
   categoriesContainer: {
     paddingHorizontal: Spacing.lg,
+    marginBottom: Spacing["3xl"],
   },
   gridContainer: {
     paddingHorizontal: Spacing.lg,

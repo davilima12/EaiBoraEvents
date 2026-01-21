@@ -40,7 +40,10 @@ export default function ReelsScreen() {
             uri: p.path_photo
           }));
 
-          // Filter only posts that have at least one video
+          // Filter only posts with type = "reels"
+          if (post.type && post.type !== "reels") return null;
+          
+          // Also ensure it has at least one video
           if (!media.some(m => m.type === 'video')) return null;
 
           const categoryMap: Record<string, EventCategory> = {

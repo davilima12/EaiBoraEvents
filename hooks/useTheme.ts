@@ -1,10 +1,9 @@
 import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/useColorScheme";
 
 export function useTheme() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === "dark";
-  const theme = Colors[colorScheme ?? "light"];
+  // Forçar modo escuro em todo o aplicativo
+  const isDark = true;
+  const theme = Colors.dark;
 
   return {
     theme,

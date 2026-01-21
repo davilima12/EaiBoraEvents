@@ -74,46 +74,82 @@ export default function ChatDetailScreen({ route }: any) {
           data.id = Date.now() + Math.random();
         }
         
-        // Se é uma mensagem enviada pelo usuário atual, marcar como enviada
-        // e substituir a mensagem temporária (optimistic update)
+        // Se é uma mensagem enviada pelo usuário atual, substituir mensagem temporária
         if (Number(data.sender_id) === Number(user?.id)) {
-          // Buscar mensagem temporária correspondente (mesmo texto e tempo próximo)
-          const tempMessageIndex = prev.findIndex(m => 
-            m.tempId && 
-            m.message === data.message && 
-            Math.abs(new Date(data.created_at).getTime() - new Date(m.created_at).getTime()) < 10000
-          );
+          // Buscar mensagem temporária correspondente (mesmo texto e sender)
+          // Comparar mensagem normalizada (trim) e verificar se foi enviada recentemente
+          const tempMessageIndex = prev.findIndex(m => {
+            if (!m.tempId || m.sender_id !== data.sender_id) return false;
+            
+            // Comparar mensagens normalizadas
+            const tempMsg = (m.message || '').trim();
+            const newMsg = (data.message || '').trim();
+            
+            if (tempMsg !== newMsg) return false;
+            
+            // Verificar se foi enviada há menos de 15 segundos (janela de tempo)
+            const timeDiff = Math.abs(
+              new Date(data.created_at).getTime() - new Date(m.created_at).getTime()
+            );
+            return timeDiff < 15000;
+          });
           
           if (tempMessageIndex !== -1) {
-            // Substituir mensagem temporária pela real
-            const newMessages = [...prev];
-            newMessages[tempMessageIndex] = { ...data, status: 'sent' as const };
+            // Substituir mensagem temporária pela real e remover outras temporárias duplicadas
+            const newMessages = prev.map((m, index) => {
+              if (index === tempMessageIndex) {
+                return { ...data, status: 'sent' as const, tempId: false };
+              }
+              // Remover outras temporárias duplicadas do mesmo texto
+              if (m.tempId && 
+                  m.sender_id === data.sender_id &&
+                  (m.message || '').trim() === (data.message || '').trim() &&
+                  index !== tempMessageIndex) {
+                return null; // Marcar para remoção
+              }
+              return m;
+            }).filter(m => m !== null) as Message[];
+            
             return newMessages;
           }
           
-          // Se não encontrou temporária, verificar se já existe
-          const exists = prev.some(m => 
-            m.id === data.id || 
-            (!m.tempId && m.message === data.message && 
-             m.sender_id === data.sender_id && 
-             Math.abs(new Date(m.created_at).getTime() - new Date(data.created_at).getTime()) < 2000)
-          );
+          // Se não encontrou temporária, verificar se já existe (evitar duplicatas)
+          const exists = prev.some(m => {
+            if (m.tempId) return false; // Ignorar temporárias na verificação
+            
+            // Comparar mensagens normalizadas
+            const existingMsg = (m.message || '').trim();
+            const newMsg = (data.message || '').trim();
+            
+            if (existingMsg !== newMsg) return false;
+            
+            return (
+              m.id === data.id || 
+              (m.sender_id === data.sender_id && 
+               Math.abs(new Date(m.created_at).getTime() - new Date(data.created_at).getTime()) < 3000)
+            );
+          });
+          
           if (exists) return prev;
           
-          // Adicionar nova mensagem
-          return [...prev, { ...data, status: 'sent' as const }];
+          // Adicionar nova mensagem (caso não tenha temporária correspondente)
+          return [...prev, { ...data, status: 'sent' as const, tempId: false }];
         }
         
         // Para mensagens recebidas, apenas verificar duplicatas
-        const exists = prev.some(m => 
-          m.id === data.id || 
-          (m.message === data.message && 
-           m.sender_id === data.sender_id && 
-           Math.abs(new Date(m.created_at).getTime() - new Date(data.created_at).getTime()) < 1000)
-        );
+        const exists = prev.some(m => {
+          if (m.tempId) return false; // Ignorar temporárias
+          return (
+            m.id === data.id || 
+            (m.message === data.message && 
+             m.sender_id === data.sender_id && 
+             Math.abs(new Date(m.created_at).getTime() - new Date(data.created_at).getTime()) < 1000)
+          );
+        });
+        
         if (exists) return prev;
         
-        return [...prev, { ...data, status: 'sent' as const }];
+        return [...prev, { ...data, status: 'sent' as const, tempId: false }];
       });
     });
 
@@ -164,7 +200,7 @@ export default function ChatDetailScreen({ route }: any) {
 
     // Adicionar mensagem imediatamente
     setMessages((prev) => {
-      // Se for reenvio, remover a mensagem com erro anterior
+      // Se for reenvio, substituir a mensagem com erro anterior
       if (messageId) {
         return prev.map(m => 
           m.id === messageId 
@@ -172,6 +208,19 @@ export default function ChatDetailScreen({ route }: any) {
             : m
         );
       }
+      
+      // Verificar se já não existe uma mensagem temporária igual (evitar duplicatas)
+      const alreadyExists = prev.some(m => 
+        m.tempId && 
+        m.message === textToSend && 
+        m.sender_id === tempMessage.sender_id &&
+        Math.abs(new Date(m.created_at).getTime() - new Date(tempMessage.created_at).getTime()) < 1000
+      );
+      
+      if (alreadyExists) {
+        return prev; // Não adicionar se já existe uma temporária igual
+      }
+      
       return [...prev, tempMessage];
     });
 

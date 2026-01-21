@@ -12,9 +12,10 @@ interface VideoPlayerProps {
   thumbnail?: string;
   style?: any;
   shouldPlay?: boolean;
+  hideControls?: boolean;
 }
 
-export function VideoPlayer({ uri, thumbnail, style, shouldPlay = true }: VideoPlayerProps) {
+export function VideoPlayer({ uri, thumbnail, style, shouldPlay = true, hideControls = false }: VideoPlayerProps) {
   const { theme } = useTheme();
   const [isLoading, setIsLoading] = useState(true);
   const [isScreenFocused, setIsScreenFocused] = useState(true);
@@ -143,12 +144,18 @@ export function VideoPlayer({ uri, thumbnail, style, shouldPlay = true }: VideoP
 
   return (
     <View ref={videoRef} style={[styles.container, style]}>
-      <Pressable style={styles.videoContainer} onPress={handleScreenPress}>
+      <Pressable 
+        style={styles.videoContainer} 
+        onPress={handleScreenPress}
+        onLongPress={() => {}} // Desabilita menu de contexto
+      >
         <VideoView
           player={player}
           style={styles.video}
           contentFit="cover"
           nativeControls={false}
+          allowsFullscreen={false}
+          allowsPictureInPicture={false}
         />
         {isLoading ? (
           <View style={[styles.skeleton, { backgroundColor: theme.backgroundSecondary }]}>
@@ -158,35 +165,46 @@ export function VideoPlayer({ uri, thumbnail, style, shouldPlay = true }: VideoP
       </Pressable>
 
       {/* Interactive Progress bar with drag support */}
-      <View
-        ref={progressBarRef}
-        style={styles.progressBarContainer}
-        {...panResponder.panHandlers}
-      >
-        <View style={[styles.progressBar, { width: `${progress}%`, backgroundColor: theme.primary }]} />
-      </View>
+      {!hideControls && (
+        <View
+          ref={progressBarRef}
+          style={styles.progressBarContainer}
+          {...panResponder.panHandlers}
+        >
+          <View style={[styles.progressBar, { width: `${progress}%`, backgroundColor: theme.primary }]} />
+        </View>
+      )}
 
       {/* Controls overlay - shows on tap */}
-      {showControls && (
+      {!hideControls && showControls && (
         <View style={styles.controlsOverlay}>
+          {/* Play/Pause button - center */}
           <View style={styles.centerControls}>
-            {/* Mute button - only visible when controls are shown */}
-            <Pressable style={styles.muteButton} onPress={toggleMute}>
-              <View style={styles.muteButtonContainer}>
+            <Pressable 
+              style={styles.playPauseButton} 
+              onPress={togglePlayPause}
+            >
+              <View style={styles.playPauseIconContainer}>
                 <Feather
-                  name={isMuted ? "volume-x" : "volume-2"}
-                  size={24}
+                  name={player?.playing ? "pause" : "play"}
+                  size={32}
                   color="#FFFFFF"
                 />
               </View>
             </Pressable>
 
-            <Pressable style={styles.playPauseButton} onPress={togglePlayPause}>
-              <Feather
-                name={player?.playing ? "pause" : "play"}
-                size={48}
-                color="#FFFFFF"
-              />
+            {/* Mute button - below play/pause */}
+            <Pressable 
+              style={styles.muteButton} 
+              onPress={toggleMute}
+            >
+              <View style={styles.muteButtonContainer}>
+                <Feather
+                  name={isMuted ? "volume-x" : "volume-2"}
+                  size={20}
+                  color="#FFFFFF"
+                />
+              </View>
             </Pressable>
           </View>
         </View>
@@ -224,12 +242,26 @@ const styles = StyleSheet.create({
     height: "100%",
   },
   muteButton: {
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    borderRadius: 20,
-    padding: 8,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(0, 0, 0, 0.65)",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
   },
   muteButtonContainer: {
-    position: "relative",
+    justifyContent: "center",
+    alignItems: "center",
   },
   mutedIndicator: {
     position: "absolute",
@@ -245,18 +277,36 @@ const styles = StyleSheet.create({
   },
   controlsOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
+    pointerEvents: "box-none",
     justifyContent: "center",
     alignItems: "center",
-    pointerEvents: "box-none",
   },
   centerControls: {
-    alignItems: 'center',
+    alignItems: "center",
     gap: 20,
   },
   playPauseButton: {
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    width: 80,
+    height: 80,
     borderRadius: 40,
-    padding: 16,
+    backgroundColor: "rgba(0, 0, 0, 0.75)",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
+    elevation: 8,
+    borderWidth: 2,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+  },
+  playPauseIconContainer: {
+    marginLeft: 4, // Slight offset for play icon to appear centered
+    justifyContent: "center",
+    alignItems: "center",
   },
 });
