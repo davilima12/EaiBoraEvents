@@ -6,12 +6,15 @@ import {
     Pressable,
     FlatList,
     ActivityIndicator,
+    Image,
+    useWindowDimensions,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { api } from "@/services/api";
+import { useNavigation } from "@react-navigation/native";
 
 interface LikeUser {
     id: string;
@@ -27,6 +30,8 @@ interface LikesModalProps {
 
 export function LikesModal({ visible, onClose, postId }: LikesModalProps) {
     const { theme } = useTheme();
+    const navigation = useNavigation();
+    const { height } = useWindowDimensions();
     const [likes, setLikes] = useState<LikeUser[]>([]);
     const [loading, setLoading] = useState(false);
 
@@ -57,13 +62,36 @@ export function LikesModal({ visible, onClose, postId }: LikesModalProps) {
         }
     };
 
+    const handleUserPress = (userId: string) => {
+        onClose();
+        setTimeout(() => {
+            (navigation as any).navigate("Profile", { userId });
+        }, 300);
+    };
+
     const renderLikeItem = ({ item }: { item: LikeUser }) => (
-        <View style={styles.likeItem}>
-            <View style={[styles.avatar, { backgroundColor: theme.primary }]}>
-                <ThemedText style={styles.avatarText}>{item.name[0].toUpperCase()}</ThemedText>
+        <Pressable
+            style={({ pressed }) => [
+                styles.likeItem,
+                { backgroundColor: pressed ? theme.backgroundSecondary : 'transparent' }
+            ]}
+            onPress={() => handleUserPress(item.id)}
+        >
+            {item.avatar ? (
+                <Image
+                    source={{ uri: item.avatar }}
+                    style={styles.avatarImage}
+                />
+            ) : (
+                <View style={[styles.avatar, { backgroundColor: theme.primary }]}>
+                    <ThemedText style={styles.avatarText}>{item.name[0].toUpperCase()}</ThemedText>
+                </View>
+            )}
+            <View style={styles.userInfo}>
+                <ThemedText style={styles.userName}>{item.name}</ThemedText>
             </View>
-            <ThemedText style={styles.userName}>{item.name}</ThemedText>
-        </View>
+            <Feather name="chevron-right" size={20} color={theme.textSecondary} />
+        </Pressable>
     );
 
     return (
@@ -74,9 +102,25 @@ export function LikesModal({ visible, onClose, postId }: LikesModalProps) {
             onRequestClose={onClose}
         >
             <Pressable style={styles.modalOverlay} onPress={onClose}>
-                <Pressable style={[styles.modalContent, { backgroundColor: theme.backgroundDefault }]} onPress={(e) => e.stopPropagation()}>
+                <Pressable
+                    style={[
+                        styles.modalContent,
+                        {
+                            backgroundColor: theme.backgroundDefault,
+                            maxHeight: height * 0.75,
+                        }
+                    ]}
+                    onPress={(e) => e.stopPropagation()}
+                >
                     <View style={[styles.header, { borderBottomColor: theme.border }]}>
-                        <ThemedText style={styles.title}>Curtidas</ThemedText>
+                        <View style={styles.headerContent}>
+                            <ThemedText style={styles.title}>Curtidas</ThemedText>
+                            {!loading && likes.length > 0 && (
+                                <ThemedText style={[styles.likesCount, { color: theme.textSecondary }]}>
+                                    {likes.length} {likes.length === 1 ? 'curtida' : 'curtidas'}
+                                </ThemedText>
+                            )}
+                        </View>
                         <Pressable onPress={onClose} style={styles.closeButton} hitSlop={8}>
                             <Feather name="x" size={24} color={theme.text} />
                         </Pressable>
@@ -111,33 +155,43 @@ export function LikesModal({ visible, onClose, postId }: LikesModalProps) {
 const styles = StyleSheet.create({
     modalOverlay: {
         flex: 1,
-        backgroundColor: "rgba(0, 0, 0, 0.6)",
+        backgroundColor: "rgba(0, 0, 0, 0.75)",
         justifyContent: "flex-end",
     },
     modalContent: {
         borderTopLeftRadius: BorderRadius.xl,
         borderTopRightRadius: BorderRadius.xl,
-        maxHeight: "60%",
         shadowColor: "#000",
         shadowOffset: { width: 0, height: -4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 5,
+        shadowOpacity: 0.3,
+        shadowRadius: 16,
+        elevation: 10,
     },
     header: {
         flexDirection: "row",
         justifyContent: "space-between",
-        alignItems: "center",
+        alignItems: "flex-start",
         paddingHorizontal: Spacing.lg,
-        paddingVertical: Spacing.md,
+        paddingTop: Spacing.lg,
+        paddingBottom: Spacing.md,
         borderBottomWidth: 1,
     },
+    headerContent: {
+        flex: 1,
+        marginRight: Spacing.md,
+    },
     title: {
-        fontSize: 20,
+        fontSize: 22,
         fontWeight: "700",
+        marginBottom: Spacing.xs,
+    },
+    likesCount: {
+        fontSize: 14,
+        fontWeight: "400",
     },
     closeButton: {
         padding: Spacing.xs,
+        borderRadius: BorderRadius.full,
     },
     loadingContainer: {
         paddingVertical: Spacing.xxl * 2,
@@ -154,29 +208,48 @@ const styles = StyleSheet.create({
         fontSize: 16,
     },
     listContent: {
-        paddingHorizontal: Spacing.lg,
-        paddingVertical: Spacing.md,
+        paddingVertical: Spacing.sm,
     },
     likeItem: {
         flexDirection: "row",
         alignItems: "center",
+        paddingHorizontal: Spacing.lg,
         paddingVertical: Spacing.md,
+        borderRadius: BorderRadius.md,
+        marginHorizontal: Spacing.sm,
+        marginVertical: Spacing.xs,
     },
     avatar: {
-        width: 48,
-        height: 48,
+        width: 52,
+        height: 52,
         borderRadius: BorderRadius.full,
         justifyContent: "center",
         alignItems: "center",
         marginRight: Spacing.md,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    avatarImage: {
+        width: 52,
+        height: 52,
+        borderRadius: BorderRadius.full,
+        marginRight: Spacing.md,
+        backgroundColor: '#f0f0f0',
     },
     avatarText: {
-        fontSize: 18,
+        fontSize: 20,
         fontWeight: "700",
         color: "#FFFFFF",
     },
+    userInfo: {
+        flex: 1,
+        justifyContent: "center",
+    },
     userName: {
         fontSize: 16,
-        fontWeight: "500",
+        fontWeight: "600",
     },
 });

@@ -37,7 +37,7 @@ export function ExploreStackNavigator() {
               <Pressable onPress={() => (navigation as any).navigate("Notifications")}>
                 <Feather name="bell" size={24} color={theme.text} />
               </Pressable>
-              <Pressable onPress={() => (navigation as any).navigate("ChatTab")}>
+              <Pressable onPress={() => (navigation as any).navigate("ChatTab", { screen: "ChatList" })}>
                 <Feather name="message-circle" size={24} color={theme.text} />
               </Pressable>
             </View>

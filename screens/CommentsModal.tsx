@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
-import { View, StyleSheet, TextInput, Pressable, Alert, KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView } from "react-native";
-import { useRoute } from "@react-navigation/native";
+import { View, StyleSheet, TextInput, Pressable, Alert, KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView, Image } from "react-native";
+import { useRoute, useNavigation } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
 import { ScreenKeyboardAwareScrollView } from "@/components/ScreenKeyboardAwareScrollView";
 import { ThemedText } from "@/components/ThemedText";
@@ -27,8 +27,13 @@ const POPULAR_EMOJIS = ["🔥", "👏", "❤️", "😂", "😍", "😮", "😢"
 const CommentItem = ({ comment, onReply, depth = 0, onRefresh }: { comment: Comment; onReply: (comment: Comment) => void; depth?: number; onRefresh?: () => void }) => {
   const { theme } = useTheme();
   const { user } = useAuth();
+  const navigation = useNavigation();
   const [showReplies, setShowReplies] = useState(false);
   const hasReplies = comment.replies && comment.replies.length > 0;
+
+  const handleAvatarPress = () => {
+    (navigation as any).navigate("Profile", { userId: comment.userId });
+  };
 
   const formatCommentTime = (timestamp: string) => {
     const date = new Date(timestamp);
@@ -95,9 +100,18 @@ const CommentItem = ({ comment, onReply, depth = 0, onRefresh }: { comment: Comm
     <View style={[styles.commentItemContainer, { marginLeft: depth * Spacing.xs }]}>
       <View style={styles.commentItem}>
         {depth > 0 && <View style={styles.connector} />}
-        <View style={[styles.commentAvatar, { backgroundColor: theme.primary, width: depth > 0 ? 24 : 32, height: depth > 0 ? 24 : 32 }]}>
-          <ThemedText style={[styles.commentAvatarText, { fontSize: depth > 0 ? 12 : 14 }]}>{comment.userName[0]}</ThemedText>
-        </View>
+        <Pressable onPress={handleAvatarPress} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          {comment.userAvatar ? (
+            <Image
+              source={{ uri: comment.userAvatar }}
+              style={[styles.commentAvatarImage, { width: depth > 0 ? 24 : 32, height: depth > 0 ? 24 : 32 }]}
+            />
+          ) : (
+            <View style={[styles.commentAvatar, { backgroundColor: theme.primary, width: depth > 0 ? 24 : 32, height: depth > 0 ? 24 : 32 }]}>
+              <ThemedText style={[styles.commentAvatarText, { fontSize: depth > 0 ? 12 : 14 }]}>{comment.userName[0]}</ThemedText>
+            </View>
+          )}
+        </Pressable>
         <Pressable
           style={styles.commentContent}
           onLongPress={user?.id === comment.userId ? handleDelete : undefined}
@@ -311,6 +325,10 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.full,
     justifyContent: "center",
     alignItems: "center",
+  },
+  commentAvatarImage: {
+    borderRadius: BorderRadius.full,
+    backgroundColor: '#f0f0f0',
   },
   commentAvatarText: {
     fontSize: 14,

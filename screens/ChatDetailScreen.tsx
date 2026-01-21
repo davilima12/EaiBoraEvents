@@ -44,7 +44,40 @@ export default function ChatDetailScreen({ route }: any) {
 
     try {
       const data = await api.getMessages(Number(contactId));
-      setMessages(data);
+      
+      // Mesclar com mensagens existentes, preservando temporárias que ainda não foram confirmadas
+      setMessages((prev) => {
+        // Identificar mensagens temporárias que ainda não foram confirmadas
+        const tempMessages = prev.filter(m => m.tempId);
+        
+        // Se não há temporárias, apenas usar os dados do servidor
+        if (tempMessages.length === 0) {
+          return data;
+        }
+        
+        // Mesclar: usar dados do servidor, mas adicionar temporárias não confirmadas
+        const serverIds = new Set(data.map((m: Message) => String(m.id)));
+        const unconfirmedTemps = tempMessages.filter(temp => {
+          // Verificar se já existe mensagem real correspondente
+          const exists = data.some((m: Message) => {
+            const tempMsg = (temp.message || '').trim();
+            const realMsg = (m.message || '').trim();
+            return (
+              tempMsg === realMsg &&
+              Number(temp.sender_id) === Number(m.sender_id) &&
+              Math.abs(new Date(temp.created_at).getTime() - new Date(m.created_at).getTime()) < 30000
+            );
+          });
+          return !exists;
+        });
+        
+        // Retornar dados do servidor + temporárias não confirmadas, ordenadas por data
+        const merged = [...data, ...unconfirmedTemps].sort((a, b) => 
+          new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        );
+        
+        return merged;
+      });
     } catch (error) {
       console.error("Error loading messages:", error);
     }
@@ -55,6 +88,15 @@ export default function ChatDetailScreen({ route }: any) {
       loadMessages();
     }, [loadMessages])
   );
+
+  // Scroll para o início quando as mensagens são carregadas
+  useEffect(() => {
+    if (messages.length > 0) {
+      setTimeout(() => {
+        flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+      }, 100);
+    }
+  }, [messages.length]);
 
   useEffect(() => {
     if (!user || !contactId) return;
@@ -74,12 +116,17 @@ export default function ChatDetailScreen({ route }: any) {
           data.id = Date.now() + Math.random();
         }
         
+        // Verificar duplicatas PRIMEIRO antes de processar
+        // Verificar por ID exato
+        if (data.id && prev.some(m => String(m.id) === String(data.id) && !m.tempId)) {
+          return prev; // Já existe, não adicionar
+        }
+        
         // Se é uma mensagem enviada pelo usuário atual, substituir mensagem temporária
         if (Number(data.sender_id) === Number(user?.id)) {
           // Buscar mensagem temporária correspondente (mesmo texto e sender)
-          // Comparar mensagem normalizada (trim) e verificar se foi enviada recentemente
           const tempMessageIndex = prev.findIndex(m => {
-            if (!m.tempId || m.sender_id !== data.sender_id) return false;
+            if (!m.tempId || Number(m.sender_id) !== Number(data.sender_id)) return false;
             
             // Comparar mensagens normalizadas
             const tempMsg = (m.message || '').trim();
@@ -87,35 +134,36 @@ export default function ChatDetailScreen({ route }: any) {
             
             if (tempMsg !== newMsg) return false;
             
-            // Verificar se foi enviada há menos de 15 segundos (janela de tempo)
+            // Verificar se foi enviada há menos de 20 segundos (janela de tempo maior)
             const timeDiff = Math.abs(
               new Date(data.created_at).getTime() - new Date(m.created_at).getTime()
             );
-            return timeDiff < 15000;
+            return timeDiff < 20000;
           });
           
           if (tempMessageIndex !== -1) {
-            // Substituir mensagem temporária pela real e remover outras temporárias duplicadas
-            const newMessages = prev.map((m, index) => {
+            // Substituir mensagem temporária pela real
+            return prev.map((m, index) => {
               if (index === tempMessageIndex) {
                 return { ...data, status: 'sent' as const, tempId: false };
               }
               // Remover outras temporárias duplicadas do mesmo texto
               if (m.tempId && 
-                  m.sender_id === data.sender_id &&
+                  Number(m.sender_id) === Number(data.sender_id) &&
                   (m.message || '').trim() === (data.message || '').trim() &&
                   index !== tempMessageIndex) {
                 return null; // Marcar para remoção
               }
               return m;
             }).filter(m => m !== null) as Message[];
-            
-            return newMessages;
           }
           
-          // Se não encontrou temporária, verificar se já existe (evitar duplicatas)
-          const exists = prev.some(m => {
-            if (m.tempId) return false; // Ignorar temporárias na verificação
+          // Se não encontrou temporária, verificar se já existe mensagem real (evitar duplicatas)
+          const existsReal = prev.some(m => {
+            if (m.tempId) return false; // Ignorar temporárias
+            
+            // Verificar por ID ou por conteúdo e tempo muito próximo
+            if (String(m.id) === String(data.id)) return true;
             
             // Comparar mensagens normalizadas
             const existingMsg = (m.message || '').trim();
@@ -123,31 +171,37 @@ export default function ChatDetailScreen({ route }: any) {
             
             if (existingMsg !== newMsg) return false;
             
+            // Se o remetente é o mesmo e a mensagem foi enviada há menos de 5 segundos, é duplicata
             return (
-              m.id === data.id || 
-              (m.sender_id === data.sender_id && 
-               Math.abs(new Date(m.created_at).getTime() - new Date(data.created_at).getTime()) < 3000)
+              Number(m.sender_id) === Number(data.sender_id) && 
+              Math.abs(new Date(m.created_at).getTime() - new Date(data.created_at).getTime()) < 5000
             );
           });
           
-          if (exists) return prev;
+          if (existsReal) return prev;
           
-          // Adicionar nova mensagem (caso não tenha temporária correspondente)
+          // Se não encontrou temporária nem mensagem real correspondente, adicionar a mensagem real
           return [...prev, { ...data, status: 'sent' as const, tempId: false }];
         }
         
-        // Para mensagens recebidas, apenas verificar duplicatas
-        const exists = prev.some(m => {
+        // Para mensagens recebidas, verificar duplicatas
+        const existsReceived = prev.some(m => {
           if (m.tempId) return false; // Ignorar temporárias
-          return (
-            m.id === data.id || 
-            (m.message === data.message && 
-             m.sender_id === data.sender_id && 
-             Math.abs(new Date(m.created_at).getTime() - new Date(data.created_at).getTime()) < 1000)
-          );
+          
+          // Verificar por ID exato
+          if (String(m.id) === String(data.id)) return true;
+          
+          // Verificar por conteúdo e tempo muito próximo
+          if (m.message === data.message && 
+              Number(m.sender_id) === Number(data.sender_id) && 
+              Math.abs(new Date(m.created_at).getTime() - new Date(data.created_at).getTime()) < 2000) {
+            return true;
+          }
+          
+          return false;
         });
         
-        if (exists) return prev;
+        if (existsReceived) return prev;
         
         return [...prev, { ...data, status: 'sent' as const, tempId: false }];
       });
@@ -344,8 +398,16 @@ export default function ChatDetailScreen({ route }: any) {
           ]}
           style={{ flex: 1 }}
           showsVerticalScrollIndicator={false}
-          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-          onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
+          onContentSizeChange={() => {
+            if (messages.length > 0) {
+              flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+            }
+          }}
+          onLayout={() => {
+            if (messages.length > 0) {
+              flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+            }
+          }}
           renderItem={({ item, index }) => {
             const isSent = Number(item.sender_id) === Number(user?.id);
             const prevMessage = index > 0 ? messages[index - 1] : null;
@@ -405,7 +467,7 @@ export default function ChatDetailScreen({ route }: any) {
                     </ThemedText>
                   </View>
                   <View style={styles.messageFooter}>
-                    {(showTime || !isSameSenderNext) && (
+                    {showTime && (
                       <ThemedText
                         style={[
                           styles.messageTime,
@@ -417,7 +479,7 @@ export default function ChatDetailScreen({ route }: any) {
                     )}
                     {isSent && (
                       <View style={styles.messageStatus}>
-                        {(item.status === 'sending' || item.status === undefined) && (
+                        {item.status === 'sending' && (
                           <Feather name="clock" size={12} color={theme.textSecondary} style={styles.statusIcon} />
                         )}
                         {(item.status === 'sent' || (!item.status && !item.tempId)) && (

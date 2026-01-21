@@ -149,16 +149,18 @@ export function EventCard({ event, onPress, onLike, onSave, onComment, onBusines
                 color={event.isLiked ? theme.accent : theme.textSecondary}
                 fill={event.isLiked ? theme.accent : "transparent"}
               />
+              <ThemedText style={[styles.actionText, { color: theme.textSecondary }]}>
+                {event.likes}
+              </ThemedText>
             </Pressable>
             <Pressable
               onPress={(e) => {
                 e.stopPropagation();
                 setShowLikesModal(true);
               }}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <ThemedText style={[styles.actionText, { color: theme.textSecondary }]}>
-                {event.likes}
-              </ThemedText>
+              <Feather name="chevron-right" size={16} color={theme.textSecondary} />
             </Pressable>
           </View>
           <View style={styles.likeContainer}>
@@ -174,10 +176,10 @@ export function EventCard({ event, onPress, onLike, onSave, onComment, onBusines
                 size={20}
                 color={theme.textSecondary}
               />
+              <ThemedText style={[styles.actionText, { color: theme.textSecondary }]}>
+                {event.comments?.length || 0}
+              </ThemedText>
             </Pressable>
-            <ThemedText style={[styles.actionText, { color: theme.textSecondary }]}>
-              {event.comments?.length || 0}
-            </ThemedText>
           </View>
         </View>
       </View>
@@ -292,8 +294,9 @@ const styles = StyleSheet.create({
     gap: Spacing.lg,
   },
   likeContainer: {
+    flexDirection: "row",
     alignItems: "center",
-    gap: 2,
+    gap: Spacing.sm,
   },
   actionButton: {
     flexDirection: "row",
