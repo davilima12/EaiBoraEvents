@@ -18,12 +18,14 @@ const pusher = new Pusher("2aa594e7028a72e6ea80", {
 });
 
 interface Message {
-  id: number;
+  id: number | string;
   message: string;
   sender_id: number;
   recipient_id: number;
   created_at: string;
   user_profile_picture?: string;
+  status?: 'sending' | 'sent' | 'error';
+  tempId?: boolean; // Indica se é uma mensagem temporária (optimistic update)
 }
 
 export default function ChatDetailScreen({ route }: any) {
@@ -67,10 +69,51 @@ export default function ChatDetailScreen({ route }: any) {
 
     channel.bind("my-event", (data: any) => {
       setMessages((prev) => {
-        // Avoid duplicates if possible (basic check)
-        const exists = prev.some(m => m.id === data.id);
+        // Ensure id exists, create one if not
+        if (!data.id) {
+          data.id = Date.now() + Math.random();
+        }
+        
+        // Se é uma mensagem enviada pelo usuário atual, marcar como enviada
+        // e substituir a mensagem temporária (optimistic update)
+        if (Number(data.sender_id) === Number(user?.id)) {
+          // Buscar mensagem temporária correspondente (mesmo texto e tempo próximo)
+          const tempMessageIndex = prev.findIndex(m => 
+            m.tempId && 
+            m.message === data.message && 
+            Math.abs(new Date(data.created_at).getTime() - new Date(m.created_at).getTime()) < 10000
+          );
+          
+          if (tempMessageIndex !== -1) {
+            // Substituir mensagem temporária pela real
+            const newMessages = [...prev];
+            newMessages[tempMessageIndex] = { ...data, status: 'sent' as const };
+            return newMessages;
+          }
+          
+          // Se não encontrou temporária, verificar se já existe
+          const exists = prev.some(m => 
+            m.id === data.id || 
+            (!m.tempId && m.message === data.message && 
+             m.sender_id === data.sender_id && 
+             Math.abs(new Date(m.created_at).getTime() - new Date(data.created_at).getTime()) < 2000)
+          );
+          if (exists) return prev;
+          
+          // Adicionar nova mensagem
+          return [...prev, { ...data, status: 'sent' as const }];
+        }
+        
+        // Para mensagens recebidas, apenas verificar duplicatas
+        const exists = prev.some(m => 
+          m.id === data.id || 
+          (m.message === data.message && 
+           m.sender_id === data.sender_id && 
+           Math.abs(new Date(m.created_at).getTime() - new Date(data.created_at).getTime()) < 1000)
+        );
         if (exists) return prev;
-        return [...prev, data];
+        
+        return [...prev, { ...data, status: 'sent' as const }];
       });
     });
 
@@ -91,32 +134,75 @@ export default function ChatDetailScreen({ route }: any) {
     };
   }, [user, contactId]);
 
-  const handleSend = async () => {
-    if (!inputText.trim() || !user) return;
+  const handleSend = async (messageTextOrEvent?: string | any, messageId?: number | string) => {
+    // Se for chamado do botão de enviar (event) ou reenvio (string)
+    let textToSend: string;
+    if (typeof messageTextOrEvent === 'string') {
+      textToSend = messageTextOrEvent;
+    } else {
+      textToSend = inputText.trim();
+    }
+    
+    if (!textToSend || !user) return;
 
-    const textToSend = inputText;
-    setInputText(""); // Clear immediately
+    // Se for reenvio, não limpar o input
+    if (typeof messageTextOrEvent !== 'string') {
+      setInputText(""); // Clear immediately
+    }
+
+    // Optimistic update - adicionar mensagem imediatamente
+    const tempId = messageId || `temp_${Date.now()}_${Math.random()}`;
+    const tempMessage: Message = {
+      id: tempId,
+      message: textToSend,
+      sender_id: Number(user.id),
+      recipient_id: Number(contactId),
+      created_at: new Date().toISOString(),
+      status: 'sending',
+      tempId: true,
+    };
+
+    // Adicionar mensagem imediatamente
+    setMessages((prev) => {
+      // Se for reenvio, remover a mensagem com erro anterior
+      if (messageId) {
+        return prev.map(m => 
+          m.id === messageId 
+            ? tempMessage 
+            : m
+        );
+      }
+      return [...prev, tempMessage];
+    });
+
+    // Scroll para o final
+    setTimeout(() => {
+      flatListRef.current?.scrollToEnd({ animated: true });
+    }, 100);
 
     try {
-      // Optimistic update (optional, but good for UX)
-      // We need a temp ID
-      const tempId = Date.now();
-      const tempMessage: Message = {
-        id: tempId,
-        message: textToSend,
-        sender_id: Number(user.id),
-        recipient_id: Number(contactId),
-        created_at: new Date().toISOString(),
-      };
-
-      // setMessages((prev) => [...prev, tempMessage]); 
-      // Commented out optimistic update to avoid complexity with duplicates for now, 
-      // relying on Pusher event which is fast.
-
       await api.sendMessage(Number(contactId), textToSend);
+      
+      // Se enviou com sucesso, a mensagem será atualizada pelo Pusher
+      // Mas marcar como enviada imediatamente para feedback visual
+      setMessages((prev) => 
+        prev.map(m => 
+          m.id === tempId 
+            ? { ...m, status: 'sent' as const, tempId: false }
+            : m
+        )
+      );
     } catch (error) {
       console.error("Error sending message:", error);
-      // Restore text if failed?
+      
+      // Marcar mensagem como erro
+      setMessages((prev) => 
+        prev.map(m => 
+          m.id === tempId 
+            ? { ...m, status: 'error' as const }
+            : m
+        )
+      );
     }
   };
 
@@ -140,9 +226,51 @@ export default function ChatDetailScreen({ route }: any) {
   const formatTime = (timestamp: string) => {
     if (!timestamp) return "";
     const date = new Date(timestamp);
-    return date.toLocaleTimeString("pt-BR", {
-      hour: "2-digit",
-      minute: "2-digit",
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return "Agora";
+    if (diffMins < 60) return `${diffMins}min`;
+    if (diffHours < 24) return `${diffHours}h`;
+    if (diffDays === 1) return "Ontem";
+    if (diffDays < 7) return `${diffDays}d`;
+    
+    return date.toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+    });
+  };
+
+  const formatFullTime = (timestamp: string) => {
+    if (!timestamp) return "";
+    const date = new Date(timestamp);
+    const now = new Date();
+    const isToday = date.toDateString() === now.toDateString();
+    const isYesterday = new Date(now.getTime() - 86400000).toDateString() === date.toDateString();
+    
+    if (isToday) {
+      return "Hoje";
+    }
+    
+    if (isYesterday) {
+      return "Ontem";
+    }
+    
+    const diffMs = now.getTime() - date.getTime();
+    const diffDays = Math.floor(diffMs / 86400000);
+    
+    if (diffDays < 7) {
+      const days = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
+      return days[date.getDay()];
+    }
+    
+    return date.toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
     });
   };
 
@@ -156,40 +284,109 @@ export default function ChatDetailScreen({ route }: any) {
         <FlatList
           ref={flatListRef}
           data={messages}
-          keyExtractor={(item) => item.id.toString()}
+          keyExtractor={(item, index) => (item.id ? item.id.toString() : `msg-${index}`)}
           contentContainerStyle={[
             styles.messagesContainer,
-            { paddingTop: Spacing.xl },
+            { 
+              paddingTop: Spacing.lg, 
+              paddingBottom: Spacing.md,
+              backgroundColor: theme.backgroundRoot,
+            },
           ]}
+          style={{ flex: 1 }}
+          showsVerticalScrollIndicator={false}
           onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
           onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
-          renderItem={({ item }) => {
+          renderItem={({ item, index }) => {
             const isSent = Number(item.sender_id) === Number(user?.id);
+            const prevMessage = index > 0 ? messages[index - 1] : null;
+            const nextMessage = index < messages.length - 1 ? messages[index + 1] : null;
+            
+            const isSameSender = prevMessage && Number(prevMessage.sender_id) === Number(item.sender_id);
+            const isSameSenderNext = nextMessage && Number(nextMessage.sender_id) === Number(item.sender_id);
+            
+            const timeDiff = prevMessage ? 
+              new Date(item.created_at).getTime() - new Date(prevMessage.created_at).getTime() : 
+              999999;
+            const showTime = !prevMessage || timeDiff > 300000; // 5 minutos
+            const showDateSeparator = !prevMessage || timeDiff > 3600000; // 1 hora
+            
+            const marginTop = isSameSender ? 2 : Spacing.xs + 2;
+            
             return (
-              <View
-                style={[
-                  styles.messageBubble,
-                  isSent
-                    ? [styles.sentBubble, { backgroundColor: theme.primary }]
-                    : [styles.receivedBubble, { backgroundColor: theme.backgroundSecondary }],
-                ]}
-              >
-                <ThemedText
+              <View key={item.id || index}>
+                {showDateSeparator && (
+                  <View style={styles.dateSeparator}>
+                    <View style={[styles.dateLine, { backgroundColor: theme.backgroundTertiary }]} />
+                    <ThemedText style={[styles.dateText, { color: theme.textSecondary }]}>
+                      {formatFullTime(item.created_at)}
+                    </ThemedText>
+                    <View style={[styles.dateLine, { backgroundColor: theme.backgroundTertiary }]} />
+                  </View>
+                )}
+                <View
                   style={[
-                    styles.messageText,
-                    { color: isSent ? "#FFFFFF" : theme.text },
+                    styles.messageWrapper,
+                    isSent ? styles.sentWrapper : styles.receivedWrapper,
+                    { marginTop },
                   ]}
                 >
-                  {item.message}
-                </ThemedText>
-                <ThemedText
-                  style={[
-                    styles.messageTime,
-                    { color: isSent ? "#FFFFFF80" : theme.textSecondary },
-                  ]}
-                >
-                  {formatTime(item.created_at)}
-                </ThemedText>
+                  <View
+                    style={[
+                      styles.messageBubble,
+                      isSent
+                        ? [
+                            styles.sentBubble, 
+                            { 
+                              backgroundColor: item.status === 'error' ? "#FF3B30" : "#0095F6",
+                              opacity: item.status === 'sending' ? 0.7 : 1,
+                            }
+                          ]
+                        : [styles.receivedBubble, { backgroundColor: "#EFEFEF" }],
+                      isSameSenderNext && styles.messageBubbleConsecutive,
+                    ]}
+                  >
+                    <ThemedText
+                      style={[
+                        styles.messageText,
+                        { color: isSent ? "#FFFFFF" : "#000000" },
+                      ]}
+                    >
+                      {item.message}
+                    </ThemedText>
+                  </View>
+                  <View style={styles.messageFooter}>
+                    {(showTime || !isSameSenderNext) && (
+                      <ThemedText
+                        style={[
+                          styles.messageTime,
+                          { color: theme.textSecondary },
+                        ]}
+                      >
+                        {formatTime(item.created_at)}
+                      </ThemedText>
+                    )}
+                    {isSent && (
+                      <View style={styles.messageStatus}>
+                        {(item.status === 'sending' || item.status === undefined) && (
+                          <Feather name="clock" size={12} color={theme.textSecondary} style={styles.statusIcon} />
+                        )}
+                        {(item.status === 'sent' || (!item.status && !item.tempId)) && (
+                          <Feather name="check" size={12} color={theme.textSecondary} style={styles.statusIcon} />
+                        )}
+                        {item.status === 'error' && (
+                          <Pressable
+                            onPress={() => handleSend(item.message, item.id)}
+                            style={styles.retryButton}
+                          >
+                            <Feather name="alert-circle" size={12} color="#FF3B30" style={styles.statusIcon} />
+                            <ThemedText style={styles.retryText}>Tentar novamente</ThemedText>
+                          </Pressable>
+                        )}
+                      </View>
+                    )}
+                  </View>
+                </View>
               </View>
             );
           }}
@@ -197,9 +394,11 @@ export default function ChatDetailScreen({ route }: any) {
 
         {isTyping && (
           <View style={styles.typingContainer}>
-            <ThemedText style={[styles.typingText, { color: theme.textSecondary }]}>
-              Digitando...
-            </ThemedText>
+            <View style={[styles.typingBubble, { backgroundColor: "#EFEFEF" }]}>
+              <View style={[styles.typingDot, { backgroundColor: theme.textSecondary }]} />
+              <View style={[styles.typingDot, styles.typingDotDelay1, { backgroundColor: theme.textSecondary }]} />
+              <View style={[styles.typingDot, styles.typingDotDelay2, { backgroundColor: theme.textSecondary }]} />
+            </View>
           </View>
         )}
 
@@ -221,16 +420,17 @@ export default function ChatDetailScreen({ route }: any) {
               onChangeText={handleTyping}
               multiline
             />
-            <Pressable
-              style={[
-                styles.sendButton,
-                { backgroundColor: inputText.trim() ? theme.primary : theme.backgroundTertiary },
-              ]}
-              onPress={handleSend}
-              disabled={!inputText.trim()}
-            >
-              <Feather name="send" size={18} color="#FFFFFF" />
-            </Pressable>
+            {inputText.trim() && (
+              <Pressable
+                style={[
+                  styles.sendButton,
+                  { backgroundColor: "#0095F6" },
+                ]}
+                onPress={handleSend}
+              >
+                <Feather name="send" size={16} color="#FFFFFF" />
+              </Pressable>
+            )}
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -243,64 +443,201 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   messagesContainer: {
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.lg,
+    paddingHorizontal: Spacing.md,
+    flexGrow: 1,
+  },
+  dateSeparator: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: Spacing.md,
+    paddingHorizontal: Spacing.sm,
+  },
+  dateLine: {
+    flex: 1,
+    height: 1,
+  },
+  dateText: {
+    fontSize: 11,
+    marginHorizontal: Spacing.sm,
+    fontWeight: "500",
+  },
+  messageWrapper: {
+    marginBottom: Spacing.xs,
+    maxWidth: "78%",
+  },
+  sentWrapper: {
+    alignSelf: "flex-end",
+    alignItems: "flex-end",
+  },
+  receivedWrapper: {
+    alignSelf: "flex-start",
+    alignItems: "flex-start",
   },
   messageBubble: {
-    maxWidth: "75%",
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.sm,
-    marginBottom: Spacing.sm,
+    paddingHorizontal: Spacing.md + 2,
+    paddingVertical: Spacing.sm + 4,
+    borderRadius: 20,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 1,
+      },
+    }),
+  },
+  messageBubbleConsecutive: {
+    marginBottom: 2,
   },
   sentBubble: {
-    alignSelf: "flex-end",
     borderBottomRightRadius: 4,
   },
   receivedBubble: {
-    alignSelf: "flex-start",
     borderBottomLeftRadius: 4,
   },
   messageText: {
     fontSize: 15,
-    marginBottom: 2,
+    lineHeight: 20,
+    fontWeight: "400",
+    letterSpacing: 0.2,
+  },
+  messageFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    marginTop: 4,
+    marginHorizontal: Spacing.xs + 2,
   },
   messageTime: {
     fontSize: 11,
-    alignSelf: "flex-end",
+    fontWeight: "400",
+    opacity: 0.6,
+    marginRight: Spacing.xs,
+  },
+  messageStatus: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  statusIcon: {
+    marginLeft: Spacing.xs / 2,
+  },
+  retryButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: Spacing.xs,
+    paddingVertical: 2,
+    borderRadius: 4,
+    backgroundColor: "rgba(255, 59, 48, 0.1)",
+  },
+  retryText: {
+    fontSize: 10,
+    color: "#FF3B30",
+    marginLeft: Spacing.xs / 2,
+    fontWeight: "500",
   },
   inputContainer: {
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: Spacing.md,
     paddingTop: Spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(0, 0, 0, 0.1)",
+    borderTopWidth: 0.5,
+    borderTopColor: "rgba(0, 0, 0, 0.08)",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
   },
   inputBar: {
     flexDirection: "row",
-    alignItems: "flex-end",
-    borderRadius: BorderRadius.xs,
+    alignItems: "center",
+    borderRadius: 24,
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    paddingVertical: Spacing.xs + 2,
     gap: Spacing.sm,
+    minHeight: 44,
+    maxHeight: 100,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   input: {
     flex: 1,
-    fontSize: 16,
-    maxHeight: 100,
+    fontSize: 15,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Platform.OS === "ios" ? Spacing.xs : 4,
+    maxHeight: 80,
+    lineHeight: 20,
   },
   sendButton: {
     width: 36,
     height: 36,
-    borderRadius: BorderRadius.full,
+    borderRadius: 18,
     justifyContent: "center",
     alignItems: "center",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#0095F6",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 3,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
   },
   typingContainer: {
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: Spacing.md,
     paddingBottom: Spacing.xs,
+    paddingLeft: Spacing.lg + Spacing.md,
   },
-  typingText: {
-    fontSize: 12,
-    fontStyle: 'italic',
-  }
+  typingBubble: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm + 2,
+    borderRadius: 20,
+    borderBottomLeftRadius: 4,
+    maxWidth: 60,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 1,
+      },
+    }),
+  },
+  typingDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginHorizontal: 2,
+    opacity: 0.4,
+  },
+  typingDotDelay1: {
+    opacity: 0.6,
+  },
+  typingDotDelay2: {
+    opacity: 0.8,
+  },
 });

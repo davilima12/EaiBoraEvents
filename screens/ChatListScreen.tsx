@@ -1,11 +1,12 @@
 import React, { useState, useCallback, useMemo } from "react";
-import { StyleSheet, View, TextInput, Animated, Pressable, Alert } from "react-native";
+import { StyleSheet, View, TextInput, Animated, Pressable, Alert, Platform } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
 import Swipeable from "react-native-gesture-handler/Swipeable";
 import { ScreenFlatList } from "@/components/ScreenFlatList";
 import { ChatPreviewCard } from "@/components/ChatPreviewCard";
 import { EmptyState } from "@/components/EmptyState";
+import { ThemedText } from "@/components/ThemedText";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
 import { database } from "@/services/database";
@@ -26,7 +27,7 @@ export default function ChatListScreen() {
       const data = await api.getChats();
       // Adapt API response to Chat type
       // Assuming API returns a list of chats with contact info and last message
-      console.log('chats')
+      console.log('chats', data)
       const adaptedChats: Chat[] = data.map((chat: any) => ({
         id: chat.id?.toString() || Math.random().toString(), // Use chat ID or generate one
         contactId: chat.contact_id?.toString() || chat.user_id?.toString(), // Adjust based on actual API response
@@ -91,16 +92,21 @@ export default function ChatListScreen() {
   }, [chats, searchQuery]);
 
   const SearchHeader = () => (
-    <View style={styles.searchContainer}>
+    <View style={[styles.searchContainer, { backgroundColor: theme.backgroundRoot }]}>
       <View style={[styles.searchBar, { backgroundColor: theme.backgroundSecondary }]}>
-        <Feather name="search" size={20} color={theme.textSecondary} />
+        <Feather name="search" size={18} color={theme.textSecondary} />
         <TextInput
           style={[styles.searchInput, { color: theme.text }]}
-          placeholder="Buscar conversa..."
+          placeholder="Buscar"
           placeholderTextColor={theme.textSecondary}
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
+        {searchQuery.length > 0 && (
+          <Pressable onPress={() => setSearchQuery("")}>
+            <Feather name="x" size={18} color={theme.textSecondary} />
+          </Pressable>
+        )}
       </View>
     </View>
   );
@@ -132,11 +138,14 @@ export default function ChatListScreen() {
 
   if (chats.length === 0) {
     return (
-      <EmptyState
-        illustration={require("@/assets/images/illustrations/no_messages_illustration.png")}
-        title="Nenhuma conversa"
-        description="Comece a conversar com outras pessoas ou empresas sobre eventos."
-      />
+      <>
+        <SearchHeader />
+        <EmptyState
+          illustration={require("@/assets/images/illustrations/no_messages_illustration.png")}
+          title="Nenhuma conversa"
+          description="Comece a conversar com outras pessoas ou empresas sobre eventos."
+        />
+      </>
     );
   }
 
@@ -145,60 +154,134 @@ export default function ChatListScreen() {
       data={filteredChats}
       keyExtractor={(item) => item.id}
       ListHeaderComponent={SearchHeader}
-      renderItem={({ item }) => (
-        <Swipeable
-          renderRightActions={(progress, dragX) =>
-            renderRightActions(progress, dragX, item.id)
-          }
-          containerStyle={styles.swipeableContainer}
-        >
-          <ChatPreviewCard
-            chat={item}
-            onPress={() => handleChatPress(item)}
-            containerStyle={{ borderRadius: 0 }}
-          />
-        </Swipeable>
+      ListEmptyComponent={
+        searchQuery.trim() ? (
+          <View style={styles.emptySearchContainer}>
+            <ThemedText style={[styles.emptySearchText, { color: theme.textSecondary }]}>
+              Nenhuma conversa encontrada
+            </ThemedText>
+          </View>
+        ) : null
+      }
+      renderItem={({ item, index }) => (
+        <View>
+          <Swipeable
+            renderRightActions={(progress, dragX) =>
+              renderRightActions(progress, dragX, item.id)
+            }
+            containerStyle={styles.swipeableContainer}
+          >
+            <ChatPreviewCard
+              chat={item}
+              onPress={() => handleChatPress(item)}
+              containerStyle={styles.chatCard}
+            />
+          </Swipeable>
+          {index < filteredChats.length - 1 && (
+            <View style={[styles.separator, { backgroundColor: theme.backgroundTertiary }]} />
+          )}
+        </View>
       )}
-      contentContainerStyle={styles.listContent}
+      contentContainerStyle={[
+        styles.listContent,
+        filteredChats.length === 0 && styles.listContentEmpty,
+      ]}
     />
   );
 }
 
 const styles = StyleSheet.create({
   listContent: {
-    paddingTop: Spacing.sm,
-    paddingHorizontal: Spacing.lg,
-    gap: Spacing.sm,
+    paddingTop: Spacing.xs,
+    paddingBottom: Spacing.md,
+  },
+  listContentEmpty: {
+    flexGrow: 1,
+  },
+  emptySearchContainer: {
+    paddingVertical: Spacing.xl * 2,
+    alignItems: "center",
+  },
+  emptySearchText: {
+    fontSize: 15,
+    fontWeight: "400",
   },
   searchContainer: {
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.md,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   searchBar: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: Spacing.md,
-    height: 40,
-    borderRadius: BorderRadius.sm,
+    height: 36,
+    borderRadius: 10,
     gap: Spacing.sm,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 1,
+      },
+      android: {
+        elevation: 1,
+      },
+    }),
   },
   searchInput: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 15,
+    paddingVertical: 0,
   },
   swipeableContainer: {
-    borderRadius: BorderRadius.sm,
-    overflow: "hidden",
+    backgroundColor: "transparent",
+  },
+  chatCard: {
+    backgroundColor: "transparent",
+    borderRadius: 0,
+  },
+  separator: {
+    height: 0.5,
+    marginLeft: 72,
   },
   rightActionsContainer: {
     width: 80,
     height: "100%",
     flexDirection: "row",
+    justifyContent: "flex-end",
+    alignItems: "center",
+    paddingRight: Spacing.md,
   },
   deleteButton: {
-    flex: 1,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     backgroundColor: "#EF4444",
     justifyContent: "center",
     alignItems: "center",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#EF4444",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
   },
 });
